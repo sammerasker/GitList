@@ -1,30 +1,32 @@
 /**
- * Configuration constants for GitLink extension
+ * Configuration constants for GitLists extension
  * These are the default values used across the extension.
  */
 
 import { getOAuthScopes } from './authConfig';
 
 /**
- * GitHub OAuth Client ID (injected at build time)
- * This placeholder is replaced by ESBuild during the build process
+ * GitHub OAuth Client ID (injected at build time via ESBuild define)
+ * ESBuild will replace INJECTED_GITHUB_CLIENT_ID with the actual value
  */
-export const GITHUB_OAUTH_CLIENT_ID = "__GITLINK_OAUTH_CLIENT_ID__";
+declare const INJECTED_GITHUB_CLIENT_ID: string;
+
+/**
+ * Get the GitHub OAuth Client ID (injected at build time)
+ */
+function getInjectedClientId(): string {
+  return INJECTED_GITHUB_CLIENT_ID;
+}
 
 /**
  * Validate that the OAuth Client ID has been properly configured
- * Throws in development, shows friendly error in production
+ * Shows error message if not configured
  */
 export function assertClientIdConfigured(): void {
-  if (GITHUB_OAUTH_CLIENT_ID === "__GITLINK_OAUTH_CLIENT_ID__" || !GITHUB_OAUTH_CLIENT_ID) {
-    const isDev = process.env.NODE_ENV === 'development';
+  const clientId = getInjectedClientId();
+  if (!clientId || clientId === "") {
     const message = 'GitHub OAuth Client ID not configured. Extension cannot connect to GitHub.';
-    
-    if (isDev) {
-      throw new Error(`[DEV] ${message} Check build configuration.`);
-    } else {
-      console.error(`[GitLink] ${message}`);
-    }
+    console.error(`[GitLists] ${message}`);
   }
 }
 
@@ -44,8 +46,9 @@ export async function resolveClientId(): Promise<string | null> {
   }
   
   // 2. Use the build-time injected client ID
-  if (GITHUB_OAUTH_CLIENT_ID && GITHUB_OAUTH_CLIENT_ID !== "__GITLINK_OAUTH_CLIENT_ID__") {
-    return GITHUB_OAUTH_CLIENT_ID.trim();
+  const clientId = getInjectedClientId();
+  if (clientId && clientId !== "") {
+    return clientId.trim();
   }
   
   // 3. No client ID available
@@ -57,7 +60,8 @@ export async function resolveClientId(): Promise<string | null> {
  * Get user-friendly error message when no client ID is available
  */
 export function getClientIdErrorMessage(): string {
-  if (GITHUB_OAUTH_CLIENT_ID === "__GITLINK_OAUTH_CLIENT_ID__" || !GITHUB_OAUTH_CLIENT_ID) {
+  const clientId = getInjectedClientId();
+  if (!clientId || clientId === "") {
     return 'Extension not properly configured. Please contact the developer.';
   }
   return 'GitHub Client ID is required to connect to GitHub.';

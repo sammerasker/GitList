@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Build script for GitLink Microsoft Edge Extension
+ * Build script for GitLists Microsoft Edge Extension
  * Runs esbuild and copies static files to dist/
  */
 
@@ -28,7 +28,7 @@ function validateBuildOutput() {
   for (const file of filesToCheck) {
     if (fs.existsSync(file)) {
       const content = fs.readFileSync(file, 'utf8');
-      if (content.includes('__GITLINK_OAUTH_CLIENT_ID__')) {
+      if (content.includes('INJECTED_GITHUB_CLIENT_ID')) {
         console.error(`❌ Build validation failed: Found unreplaced placeholder in ${file}`);
         console.error('   This indicates the ESBuild define configuration is not working properly.');
         process.exit(1);
@@ -93,7 +93,7 @@ async function buildExtension() {
       define: {
         'process.env.TARGET': JSON.stringify('edge'),
         'process.env.NODE_ENV': JSON.stringify(isDev ? 'development' : 'production'),
-        '__GITLINK_OAUTH_CLIENT_ID__': JSON.stringify(githubClientId),
+        'INJECTED_GITHUB_CLIENT_ID': JSON.stringify(githubClientId),
       },
     };
 

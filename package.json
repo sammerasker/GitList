@@ -1,14 +1,14 @@
 {
-  "name": "gitlink-edge-extension",
+  "name": "gitlists-edge-extension",
   "version": "1.0.0",
-  "description": "GitLink - GitHub Stars and Lists Manager for Microsoft Edge",
+  "description": "GitLists - GitHub Stars and Lists Manager for Microsoft Edge",
   "scripts": {
     "build": "node build.js",
     "build:edge": "node build.js --target=edge",
     "dev": "node build.js --dev",
     "watch": "node build.js --watch",
     "clean": "rmdir /s /q dist 2>nul || rm -rf dist",
-    "package": "npm run build && powershell Compress-Archive -Path dist/* -DestinationPath gitlink-edge-extension.zip -Force"
+    "package": "npm run build && powershell Compress-Archive -Path dist/* -DestinationPath gitlists-edge-extension.zip -Force"
   },
   "keywords": [
     "github",
@@ -18,7 +18,7 @@
     "microsoft-edge",
     "productivity"
   ],
-  "author": "GitLink Team",
+  "author": "GitLists Team",
   "license": "MIT",
   "repository": {
     "type": "git",
