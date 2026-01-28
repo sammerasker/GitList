@@ -1,6 +1,14 @@
 # GitLink - Microsoft Edge Extension
 
+![GitLink Banner](docs/screenshots/ImagePM.png)
+
 GitLink is a Microsoft Edge extension that helps you browse and manage your GitHub starred repositories and star lists with intelligent bookmarking capabilities.
+
+<p align="center">
+  <img src="docs/screenshots/s1.png" width="30%" alt="Screenshot 1" />
+  <img src="docs/screenshots/s2.png" width="30%" alt="Screenshot 2" />
+  <img src="docs/screenshots/s3.png" width="30%" alt="Screenshot 3" />
+</p>
 
 ## Features
 
