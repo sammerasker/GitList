@@ -157,7 +157,7 @@
             </button>
             <div id="advanced-content" class="accordion-content hidden">
               <!-- Custom Client ID (Developer Mode Only) -->
-              <div id="custom-client-id-setting" class="setting" style="display: none;">
+              <div id="custom-client-id-setting" class="setting hidden">
                 <label for="custom-client-id-input">Developer Override: Custom GitHub Client ID</label>
                 <input id="custom-client-id-input" type="text" placeholder="Override default Client ID (dev mode only)" class="input-text">
                 <small>Developer mode only: Override the built-in GitHub OAuth Client ID for testing.</small>
@@ -167,7 +167,7 @@
               </div>
               
               <!-- Hidden Diagnostics Section (for development only) -->
-              <div id="diagnostics-section" class="setting-section" style="display: none;">
+              <div id="diagnostics-section" class="setting-section hidden">
                 <h4>Diagnostics (Dev Only)</h4>
                 <div class="setting">
                   <button id="test-refresh-btn" class="btn btn-secondary">Test Refresh Now</button>
@@ -185,7 +185,7 @@
               
               <!-- Version Label (click 7 times to unlock dev mode) -->
               <div class="setting">
-                <small id="version-label" style="cursor: pointer; user-select: none; color: var(--color-text-secondary);">GitLink v1.0.0</small>
+                <small id="version-label" class="version-label">GitLink v1.0.0</small>
               </div>
             </div>
           </div>

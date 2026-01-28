@@ -8,14 +8,15 @@
   "permissions": [
     "storage",
     "alarms",
-    "tabs"
+    "tabs",
+    "scripting"
   ],
   "host_permissions": [
     "https://api.github.com/*",
     "https://github.com/*"
   ],
   "content_security_policy": {
-    "extension_pages": "default-src 'self'; script-src 'self'; object-src 'self'; base-uri 'self'; frame-ancestors 'none'"
+    "extension_pages": "default-src 'self'; script-src 'self'; object-src 'self'; base-uri 'self'; frame-ancestors 'none'; connect-src 'self' https://api.github.com https://github.com"
   },
   "background": {
     "service_worker": "background/serviceWorker.js",
@@ -44,6 +45,5 @@
       "run_at": "document_idle",
       "all_frames": false
     }
-  ],
-  "minimum_edge_version": "88.0.705.50"
+  ]
 }

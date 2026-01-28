@@ -512,6 +512,13 @@ function isLoggedIntoGitHub(): boolean {
 chrome.runtime.onMessage.addListener((message: ContentScriptMessage, sender, sendResponse) => {
   console.log(`[CS] 📨 Message received: "${message.type}" at ${window.location.href} - ${new Date().toISOString()}`);
 
+  // Handle ping message for content script detection
+  if ((message as any).type === '__PING__') {
+    console.log('[CS] 🏓 Ping received, responding...');
+    sendResponse({ ok: true });
+    return true;
+  }
+
   (async () => {
     try {
       if (message.type === 'SCRAPE_STARS_PAGE') {

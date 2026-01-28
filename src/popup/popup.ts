@@ -616,11 +616,11 @@ async function saveDevModeState(enabled: boolean): Promise<void> {
  */
 function updateDiagnosticsVisibility(): void {
   if (devModeEnabled) {
-    diagnosticsSection.style.display = 'block';
-    customClientIdSetting.style.display = 'block';
+    diagnosticsSection.classList.remove('hidden');
+    customClientIdSetting.classList.remove('hidden');
   } else {
-    diagnosticsSection.style.display = 'none';
-    customClientIdSetting.style.display = 'none';
+    diagnosticsSection.classList.add('hidden');
+    customClientIdSetting.classList.add('hidden');
   }
 }
 

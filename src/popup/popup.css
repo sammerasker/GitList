@@ -645,6 +645,18 @@ body {
   display: none;
 }
 
+/* Utility class for hiding elements */
+.hidden {
+  display: none !important;
+}
+
+/* Version label styling */
+.version-label {
+  cursor: pointer;
+  user-select: none;
+  color: var(--color-text-secondary);
+}
+
 .notification-error {
   background-color: var(--color-error-bg);
   border-color: var(--color-error-text);

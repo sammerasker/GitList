@@ -13,25 +13,53 @@ GitLink is a Microsoft Edge extension that helps you browse and manage your GitH
 
 ## Installation
 
+### Browser Availability
+
+**Microsoft Edge** is the primary supported browser for this extension:
+- **Edge Add-ons Store**: Coming soon - manual installation available now via GitHub Releases
+- **Manual Install**: Available now for all users (see instructions below)
+
+**Google Chrome** version is also available:
+- **Chrome Web Store**: Not available (requires paid developer account)
+- **Manual Install**: Pre-built Chrome packages (marked "for Chrome") are provided with each GitHub Release
+- **Source Code**: Will be shared publicly when the extension is published to official stores
+
+**Note**: Both Edge and Chrome builds are provided as ready-to-install packages in [GitHub Releases](https://github.com/sammerasker/GitList/releases). Download the appropriate version for your browser.
+
 ### From Microsoft Edge Add-ons Store
 *Coming soon - extension will be available in the Microsoft Edge Add-ons store*
 
-### Manual Installation (Developer Mode)
+### Manual Installation (For End Users)
 
-#### For End Users
+**Step-by-step installation from GitHub Releases:**
 
-1. **Download Extension**
-   - Download from Microsoft Edge Add-ons (when available)
-   - Or download release from [GitHub Releases](https://github.com/sammerasker/GitList/releases)
+1. **Download the Extension**
+   - Visit [GitHub Releases](https://github.com/sammerasker/GitList/releases)
+   - Download the latest `gitlink-edge-extension.zip` file
+   - Extract the ZIP file to a permanent location on your computer
 
-2. **Load in Microsoft Edge**
+2. **Enable Developer Mode in Edge**
    - Open Microsoft Edge
    - Navigate to `edge://extensions/`
-   - Enable "Developer mode" (toggle in the left sidebar)
-   - Click "Load unpacked"
-   - Select the downloaded extension folder
+   - Toggle "Developer mode" ON (switch in the left sidebar)
+   - This allows loading extensions from local files
 
-#### For Maintainers/Developers
+3. **Load the Extension**
+   - Click "Load unpacked" button
+   - Navigate to the extracted folder
+   - Select the folder that contains `manifest.json` (typically the `dist` folder inside the extracted files)
+   - Click "Select Folder"
+
+4. **Verify Installation**
+   - The GitLink extension should now appear in your extensions list
+   - Ensure it's enabled (toggle switch is ON)
+
+5. **Pin the Extension**
+   - Click the Extensions button (puzzle piece icon) in the Edge toolbar
+   - Find "GitLink" in the list
+   - Click the pin icon to keep it visible in your toolbar
+
+### Manual Installation (For Maintainers/Developers)
 
 1. **Clone and Setup Environment**
    ```bash
@@ -92,9 +120,40 @@ GitLink is a Microsoft Edge extension that helps you browse and manage your GitH
 ## Microsoft Edge Compatibility
 
 This extension is specifically optimized for Microsoft Edge and requires:
-- Microsoft Edge version 88.0.705.50 or later
-- Manifest V3 support
+- Microsoft Edge (Chromium) with Manifest V3 support (latest stable version recommended)
 - Modern JavaScript features (ES2020+)
+
+**Note**: While the extension was developed for Edge 88+, we recommend using the latest stable version of Microsoft Edge for the best experience and security updates.
+
+## In-Extension Developer Mode (Advanced)
+
+GitLink includes a hidden **Developer Mode** for advanced users and developers. This is separate from Edge's extension loading "Developer mode" toggle.
+
+### What It Enables
+
+When enabled, Developer Mode reveals:
+- **Diagnostics Section**: Test buttons for manual sync operations
+- **Test Refresh Button**: Manually trigger a sync and view console logs
+- **Test Lists Scraping**: Test the lists scraping functionality on GitHub pages
+- **OAuth Client ID Override**: Override the built-in GitHub OAuth Client ID for testing custom OAuth apps
+
+### How to Enable
+
+1. Open the GitLink extension popup
+2. Click the Settings (gear) icon
+3. Expand the "Advanced" section
+4. Click the version label text (e.g., "GitLink v1.0.0") **7 times** within 5 seconds
+5. A notification will confirm "Developer Mode enabled!"
+6. The Diagnostics section will now be visible
+
+### How to Disable
+
+1. Open Settings → Advanced
+2. Scroll to the Diagnostics section (now visible)
+3. Click "Disable Developer Mode" button
+4. The diagnostics section will be hidden again
+
+**Note**: Developer Mode state is stored locally in your browser. If you uninstall and reinstall the extension, you'll need to re-enable it.
 
 ## Development
 
@@ -165,16 +224,73 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Related Projects
 
-- **[GitLink for Chrome](https://github.com/sammerasker/GitList)** - Chrome version of this extension
+- **[GitLink for Chrome](https://github.com/sammerasker/GitList)** - Chrome version available via GitHub Releases only (not on Chrome Web Store)
+
+## Troubleshooting
+
+### Lists Sync Issues
+
+**Problem**: Lists sync fails or shows 0 lists
+
+**Solutions**:
+- Ensure you're logged into GitHub in the same Edge browser profile
+- Visit your GitHub stars page manually first: `https://github.com/YOUR_USERNAME?tab=stars`
+- Check that you have created star lists on GitHub
+- Try disconnecting and reconnecting your GitHub account in the extension
+
+### Extension Popup is Blank
+
+**Problem**: Extension popup shows a blank screen after update
+
+**Solutions**:
+- Disable and re-enable the extension: `edge://extensions/` → Toggle OFF then ON
+- If that doesn't work, remove and reinstall the extension
+- Clear browser cache and restart Edge
+
+### Viewing Service Worker Logs
+
+For debugging or reporting issues:
+1. Navigate to `edge://extensions/`
+2. Find GitLink in the extensions list
+3. Click "Details"
+4. Scroll to "Inspect views"
+5. Click "service worker" link to open DevTools
+6. View console logs for detailed error messages
+
+### Authentication Issues
+
+**Problem**: "Could not connect to GitHub" or authentication fails
+
+**Solutions**:
+- Ensure you're connected to the internet
+- Check if GitHub is accessible in your browser
+- Try the OAuth flow again (disconnect and reconnect)
+- Clear extension storage: Settings → Disconnect → Reconnect
+
+### Performance Issues
+
+**Problem**: Extension is slow or unresponsive
+
+**Solutions**:
+- Reduce auto-refresh frequency in Settings
+- Disable lists sync if you have many lists (Settings → Lists Sync toggle)
+- Check Edge's Task Manager (`Shift+Esc`) for memory usage
+- Restart Edge browser
+
+**Still having issues?** Check the [GitHub Issues](https://github.com/sammerasker/GitList/issues) page or open a new issue with:
+- Edge version (`edge://version/`)
+- Extension version (visible in `edge://extensions/`)
+- Console logs from service worker (see "Viewing Service Worker Logs" above)
 
 ## Support
 
 If you encounter any issues:
 
-1. Check the [Issues](https://github.com/sammerasker/GitList/issues) page
-2. Ensure you're using a supported Edge version (88+)
-3. Try disconnecting and reconnecting your GitHub account
-4. Check the browser console for error messages
+1. Check the [Troubleshooting](#troubleshooting) section above
+2. Review the [Issues](https://github.com/sammerasker/GitList/issues) page
+3. Ensure you're using a supported Edge version (latest stable recommended)
+4. Try disconnecting and reconnecting your GitHub account
+5. Check the service worker console for error messages (see Troubleshooting section)
 
 ---
 

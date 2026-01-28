@@ -149,6 +149,16 @@ export async function syncLists(): Promise<{
     await waitForTabComplete(targetTab.id!);
     console.log('[Syncer] ✅ Tab loaded successfully');
 
+    // Ensure content script is injected and ready
+    const scriptReady = await ensureContentScript(targetTab.id!);
+    if (!scriptReady) {
+      console.error('[Syncer] ❌ Content script not available on GitHub tab');
+      return {
+        success: false,
+        error: 'Content script not available on GitHub tab. Please ensure you are on a GitHub page.',
+      };
+    }
+
     // Message the content script to scrape
     return new Promise((resolve) => {
       if (!targetTab || !targetTab.id) {
@@ -244,6 +254,68 @@ async function waitForTabComplete(tabId: number): Promise<void> {
     };
 
     checkTab();
+  });
+}
+
+/**
+ * Ensure content script is injected and ready in the target tab
+ * Returns true if content script is available, false otherwise
+ */
+async function ensureContentScript(tabId: number): Promise<boolean> {
+  console.log(`[Syncer] 🔍 Checking if content script is available in tab ${tabId}...`);
+  
+  // First, try to ping the content script
+  return new Promise((resolve) => {
+    chrome.tabs.sendMessage(
+      tabId,
+      { type: '__PING__' },
+      (response) => {
+        if (chrome.runtime.lastError) {
+          console.log(`[Syncer] ⚠️  Content script not responding: ${chrome.runtime.lastError.message}`);
+          console.log(`[Syncer] 💉 Attempting to inject content script...`);
+          
+          // Content script not available, try to inject it
+          chrome.scripting.executeScript(
+            {
+              target: { tabId },
+              files: ['content/githubScraper.js']
+            },
+            () => {
+              if (chrome.runtime.lastError) {
+                console.error(`[Syncer] ❌ Failed to inject content script: ${chrome.runtime.lastError.message}`);
+                resolve(false);
+                return;
+              }
+              
+              console.log(`[Syncer] ✅ Content script injected successfully`);
+              
+              // Wait a bit for the script to initialize, then verify with another ping
+              setTimeout(() => {
+                chrome.tabs.sendMessage(
+                  tabId,
+                  { type: '__PING__' },
+                  (verifyResponse) => {
+                    if (chrome.runtime.lastError || !verifyResponse?.ok) {
+                      console.error(`[Syncer] ❌ Content script still not responding after injection`);
+                      resolve(false);
+                    } else {
+                      console.log(`[Syncer] ✅ Content script verified and ready`);
+                      resolve(true);
+                    }
+                  }
+                );
+              }, 500);
+            }
+          );
+        } else if (response?.ok) {
+          console.log(`[Syncer] ✅ Content script already available`);
+          resolve(true);
+        } else {
+          console.error(`[Syncer] ❌ Content script responded but with unexpected response`);
+          resolve(false);
+        }
+      }
+    );
   });
 }
 
