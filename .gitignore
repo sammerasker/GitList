@@ -1,0 +1,60 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.local
+.env.production.local
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+.cache/
+
+# Documentation files - ignore all markdown by default
+*.md
+
+# Allow only official documentation (store submission requirements)
+!README.md
+!LICENSE
+!PRIVACY.md
+!SECURITY.md
+!CONTRIBUTING.md
+
+# Ignore development notes and drafts
+notes/
+drafts/
+**/notes/*.md
+**/draft*.md
+**/*private*.md
+
+# Distribution packages
+*.zip
+*.tar.gz
+
+# Temporary files
+temp/
+tmp/
+.temp/

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GitLink</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div id="app" class="app">
+    <!-- Error Banner -->
+    <div id="error-banner" class="error-banner hidden">
+      <span id="error-banner-message"></span>
+      <button id="error-banner-close" class="error-banner-close">✕</button>
+    </div>
+    
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <h1 class="title">
+          <img src="../images/icon-32.png" alt="GitLink Logo" class="icon icon-logo">
+          GitLink
+        </h1>
+      </div>
+      <div class="header-right">
+        <button id="settings-btn" class="btn btn-icon" title="Settings" aria-label="Settings">
+          <svg class="icon-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+        <button id="refresh-btn" class="btn btn-icon" title="Refresh" aria-label="Refresh">
+          <svg class="icon-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36M20.49 15a9 9 0 0 1-14.85 3.36"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- State: Not Connected -->
+    <div id="not-connected-view" class="view hidden">
+      <div class="not-connected">
+        <div class="not-connected-icon">🔗</div>
+        <h2>Connect Your GitHub Account</h2>
+        <p>Sign in with your GitHub account to sync your starred repositories and star lists.</p>
+        <button id="connect-btn" class="btn btn-primary">Connect GitHub</button>
+      </div>
+    </div>
+
+    <!-- State: Device Flow -->
+    <div id="device-flow-view" class="view hidden">
+      <div class="device-flow">
+        <div class="device-flow-step">
+          <h2>Authorization Required</h2>
+          <p>Click the button below to open GitHub and authorize this extension.</p>
+          <button id="open-github-btn" class="btn btn-primary">Open GitHub</button>
+        </div>
+        <div class="device-flow-step">
+          <p>Or enter this code on GitHub:</p>
+          <div class="device-code">
+            <code id="user-code">------</code>
+            <button id="copy-code-btn" class="btn btn-small">Copy</button>
+          </div>
+        </div>
+        <div class="device-flow-step">
+          <p id="device-flow-status" class="status-text">Waiting for authorization...</p>
+          <button id="cancel-auth-btn" class="btn btn-secondary">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- State: Connected -->
+    <div id="connected-view" class="view">
+      <!-- Search bar -->
+      <div class="search-container">
+        <input
+          id="search-input"
+          type="text"
+          placeholder="Search repositories and lists..."
+          class="search-input"
+        >
+      </div>
+
+      <!-- Tree view -->
+      <div id="tree-container" class="tree">
+        <!-- Populated dynamically -->
+      </div>
+
+      <!-- Footer -->
+      <footer class="footer">
+        <div class="sync-status">
+          <div id="sync-info" class="sync-info"></div>
+        </div>
+        <button id="disconnect-btn" class="btn btn-danger btn-small">Disconnect</button>
+      </footer>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal hidden">
+      <div class="modal-overlay"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Settings</h2>
+          <button id="close-settings-btn" class="btn btn-icon">✕</button>
+        </div>
+        <div class="modal-body">
+          <!-- Auto-refresh toggle -->
+          <div class="setting">
+            <label class="toggle-label">
+              <input id="auto-refresh-toggle" type="checkbox">
+              <span>Enable Auto-Refresh</span>
+            </label>
+          </div>
+
+          <!-- Refresh interval -->
+          <div class="setting">
+            <label for="refresh-interval-input">Refresh Interval (hours)</label>
+            <input id="refresh-interval-input" type="number" min="1" max="168" class="input-text">
+            <small>Time between automatic syncs (1-168 hours, default 6)</small>
+          </div>
+
+          <!-- Lists sync toggle -->
+          <div class="setting">
+            <label class="toggle-label">
+              <input id="lists-sync-toggle" type="checkbox">
+              <span>Sync GitHub Star Lists (Experimental)</span>
+            </label>
+          </div>
+
+          <!-- Private repos toggle -->
+          <div class="setting">
+            <label class="toggle-label">
+              <input id="private-repos-toggle" type="checkbox">
+              <span>Include private repos (requires broader GitHub permission)</span>
+            </label>
+            <small>Turn off to request fewer permissions, but private repos won't appear.</small>
+          </div>
+
+          <!-- Session-only token toggle -->
+          <div class="setting">
+            <label class="toggle-label">
+              <input id="session-token-toggle" type="checkbox">
+              <span>Session-only token storage</span>
+            </label>
+            <small>Session-only means you may need to re-connect after browser restart.</small>
+          </div>
+
+          <!-- Advanced Section -->
+          <div class="setting-section">
+            <button id="advanced-toggle" class="accordion-button">
+              <span>Advanced</span>
+              <svg class="accordion-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+            <div id="advanced-content" class="accordion-content hidden">
+              <!-- Custom Client ID (Developer Mode Only) -->
+              <div id="custom-client-id-setting" class="setting" style="display: none;">
+                <label for="custom-client-id-input">Developer Override: Custom GitHub Client ID</label>
+                <input id="custom-client-id-input" type="text" placeholder="Override default Client ID (dev mode only)" class="input-text">
+                <small>Developer mode only: Override the built-in GitHub OAuth Client ID for testing.</small>
+              </div>
+              <div class="setting">
+                <button id="reset-client-id-btn" class="btn btn-secondary">Reset to Default</button>
+              </div>
+              
+              <!-- Hidden Diagnostics Section (for development only) -->
+              <div id="diagnostics-section" class="setting-section" style="display: none;">
+                <h4>Diagnostics (Dev Only)</h4>
+                <div class="setting">
+                  <button id="test-refresh-btn" class="btn btn-secondary">Test Refresh Now</button>
+                  <small>Manually trigger a sync and check console logs</small>
+                </div>
+                <div class="setting">
+                  <button id="test-lists-btn" class="btn btn-secondary">Test Lists Scraping</button>
+                  <small>Test lists scraping on current GitHub page</small>
+                </div>
+                <div class="setting">
+                  <button id="disable-dev-mode-btn" class="btn btn-danger btn-small">Disable Developer Mode</button>
+                  <small>Hide diagnostics and return to normal mode</small>
+                </div>
+              </div>
+              
+              <!-- Version Label (click 7 times to unlock dev mode) -->
+              <div class="setting">
+                <small id="version-label" style="cursor: pointer; user-select: none; color: var(--color-text-secondary);">GitLink v1.0.0</small>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Save button at bottom -->
+          <div class="modal-footer">
+            <button id="save-settings-btn" class="btn btn-primary">Save Settings</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error notification -->
+    <div id="error-notification" class="notification notification-error hidden">
+      <span id="error-message"></span>
+      <button class="btn-close">✕</button>
+    </div>
+  </div>
+
+  <script src="popup.js" type="module"></script>
+</body>
+</html>

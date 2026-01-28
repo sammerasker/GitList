@@ -1,0 +1,40 @@
+{
+  "name": "gitlink-edge-extension",
+  "version": "1.0.0",
+  "description": "GitLink - GitHub Stars and Lists Manager for Microsoft Edge",
+  "scripts": {
+    "build": "node build.js",
+    "build:edge": "node build.js --target=edge",
+    "dev": "node build.js --dev",
+    "watch": "node build.js --watch",
+    "clean": "rmdir /s /q dist 2>nul || rm -rf dist",
+    "package": "npm run build && powershell Compress-Archive -Path dist/* -DestinationPath gitlink-edge-extension.zip -Force"
+  },
+  "keywords": [
+    "github",
+    "stars",
+    "bookmarks",
+    "edge-extension",
+    "microsoft-edge",
+    "productivity"
+  ],
+  "author": "GitLink Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sammerasker/GitList.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sammerasker/GitList/issues"
+  },
+  "homepage": "https://github.com/sammerasker/GitList#readme",
+  "devDependencies": {
+    "@types/chrome": "^0.0.268",
+    "dotenv": "^16.3.1",
+    "esbuild": "^0.20.2",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
