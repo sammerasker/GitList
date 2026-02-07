@@ -205,6 +205,25 @@ export async function syncLists(): Promise<{
               console.log(`[Syncer]   📁 [${idx + 1}/${lists.length}] "${list.name}" - ${list.repositories.length} repos`);
             });
             
+            // Check if user has no lists
+            if (lists.length === 0) {
+              console.log('[Syncer] ℹ️  No lists found - user may not have created any lists yet');
+              console.log('[Syncer] 💡 Create lists at: https://github.com/stars');
+              
+              // Cache empty result but don't treat as error
+              chrome.storage.local.set({
+                [STORAGE_KEYS.LISTS_CACHE]: [],
+                [STORAGE_KEYS.LAST_SYNC_LISTS]: Date.now(),
+              });
+              
+              resolve({ 
+                success: true, 
+                lists: [],
+                error: 'No lists found. Create lists at github.com/stars to organize your starred repos.'
+              });
+              return;
+            }
+            
             // Cache results
             chrome.storage.local.set({
               [STORAGE_KEYS.LISTS_CACHE]: lists,

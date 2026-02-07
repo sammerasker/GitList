@@ -173,9 +173,17 @@ function scrapeStarsPage(): Array<{ name: string; url: string }> {
   const lists: Array<{ name: string; url: string }> = [];
   const seen = new Set<string>();
 
-  // Multiple selector strategies for robustness
+  // Multiple selector strategies for robustness - updated for 2026 GitHub UI
   const selectors = [
-    // Primary: Look for "Your lists" section
+    // Modern GitHub UI (2026): Sidebar navigation with turbo-frame
+    'turbo-frame[id*="lists"] a[href*="/lists/"]',
+    'aside a[href*="/lists/"]',
+    '[data-view-component="true"] a[href*="/lists/"]',
+    // Sidebar list items
+    'nav[aria-label*="Lists"] a[href*="/lists/"]',
+    'nav[aria-label*="lists"] a[href*="/lists/"]',
+    '[role="navigation"] a[href*="/lists/"]',
+    // Primary: Look for "Your lists" section (legacy)
     '[data-filterable-for="your-lists"] a[href*="/stars/lists/"]',
     // Updated: Handle user-specific list URLs
     'a[href*="/stars/"][href*="/lists/"]',
@@ -186,7 +194,13 @@ function scrapeStarsPage(): Array<{ name: string; url: string }> {
     // Broader: Any link containing "lists" in stars context
     '.js-navigation-item a[href*="/lists/"]',
     // Even broader: look for any links that might be lists
-    'a[href*="/lists/"][href*="stars"]'
+    'a[href*="/lists/"][href*="stars"]',
+    // React/modern component selectors
+    '[data-testid*="list"] a[href*="/lists/"]',
+    '[class*="list"] a[href*="/lists/"]',
+    // Generic sidebar patterns
+    '.sidebar a[href*="/lists/"]',
+    '.Layout-sidebar a[href*="/lists/"]'
   ];
 
   let foundLinks: NodeListOf<Element> | null = null;
@@ -309,13 +323,17 @@ async function scrapeListPage(listUrl: string): Promise<GitHubRepository[]> {
 
     // Multiple selector strategies for repository items
     const repoSelectors = [
+      // List pages use h2 tags (not h3!)
+      '#user-list-repositories a[href^="/"]',
+      'h2 a[href^="/"]',
+      'h2.h3 a[href^="/"]',
       // Primary: Modern GitHub structure
       '[data-testid="item-title"]',
       // Fallback: Repository links in list context
       'a[href^="/"][href*="/"][data-hovercard-type="repository"]',
       // Alternative: Box row items with repo links
       '.Box-row a[href^="/"][href*="/"]',
-      // Broader: Any repo-like links
+      // Broader: Any repo-like links in h3
       'h3 a[href^="/"], .h4 a[href^="/"]'
     ];
 
