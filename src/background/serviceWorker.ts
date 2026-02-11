@@ -136,17 +136,26 @@ async function setupAlarm(): Promise<void> {
   const settings = await getSettings();
   
   if (!settings.autoRefreshEnabled) {
+    console.log('[SW] 🔕 Auto-refresh disabled - clearing alarm');
     await chrome.alarms.clear(SYNC_ALARM_NAME);
     return;
   }
 
   const periodInMinutes = settings.autoRefreshIntervalHours * 60;
   
+  console.log(`[SW] 🔔 Creating alarm with periodInMinutes: ${periodInMinutes} (${settings.autoRefreshIntervalHours} hours)`);
+  
   await chrome.alarms.create(SYNC_ALARM_NAME, {
     periodInMinutes,
   });
 
-  console.log(`[SW] Alarm set for every ${settings.autoRefreshIntervalHours} hours`);
+  // Verify the alarm was created correctly
+  const alarm = await chrome.alarms.get(SYNC_ALARM_NAME);
+  if (alarm) {
+    console.log(`[SW] ✅ Alarm verified - periodInMinutes: ${alarm.periodInMinutes}, scheduledTime: ${new Date(alarm.scheduledTime).toISOString()}`);
+  } else {
+    console.error('[SW] ❌ Alarm creation failed - alarm not found after creation');
+  }
 }
 
 /**
@@ -386,7 +395,9 @@ chrome.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === SYNC_ALARM_NAME) {
     console.log('[SW] ⏰ Auto-refresh alarm triggered at', new Date().toISOString());
+    console.log(`[SW] 📊 Alarm details - periodInMinutes: ${alarm.periodInMinutes}, scheduledTime: ${new Date(alarm.scheduledTime).toISOString()}`);
     const settings = await getSettings();
+    console.log(`[SW] ⚙️  Current settings - autoRefreshIntervalHours: ${settings.autoRefreshIntervalHours}`);
     await performSync(settings);
   }
 });
