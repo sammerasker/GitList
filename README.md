@@ -2,6 +2,12 @@
 
 ![GitLink Banner](docs/screenshots/ImagePM.png)
 
+<p align="center">
+  <a href="https://microsoftedge.microsoft.com/addons/detail/oljdllmbnhclaijkeahbdkccachkifpa" target="_blank">
+    <img src="docs/screenshots/download-edge.png" alt="Download from Microsoft Edge Add-ons" width="200" />
+  </a>
+</p>
+
 GitLists is a Microsoft Edge extension that helps you browse and manage your GitHub starred repositories and star lists with intelligent bookmarking capabilities.
 
 <p align="center">
@@ -21,11 +27,26 @@ GitLists is a Microsoft Edge extension that helps you browse and manage your Git
 
 ## Installation
 
+### From Microsoft Edge Add-ons Store (Recommended)
+
+**✅ Now Available!** Install directly from the Microsoft Edge Add-ons store:
+
+<p align="center">
+  <a href="https://microsoftedge.microsoft.com/addons/detail/oljdllmbnhclaijkeahbdkccachkifpa" target="_blank">
+    <img src="docs/screenshots/download-edge.png" alt="Download from Microsoft Edge Add-ons" width="200" />
+  </a>
+</p>
+
+1. Click the download button above or visit the [Edge Add-ons store](https://microsoftedge.microsoft.com/addons/detail/oljdllmbnhclaijkeahbdkccachkifpa)
+2. Click "Get" to install
+3. The extension will be added to your Edge browser automatically
+4. Click the GitLists icon in your toolbar to get started
+
 ### Browser Availability
 
 **Microsoft Edge** is the primary supported browser for this extension:
-- **Edge Add-ons Store**: Coming soon - manual installation available now via GitHub Releases
-- **Manual Install**: Available now for all users (see instructions below)
+- **Edge Add-ons Store**: ✅ Available now!
+- **Manual Install**: Also available via GitHub Releases
 
 **Google Chrome** version is also available:
 - **Chrome Web Store**: Not available (requires paid developer account)
@@ -33,9 +54,6 @@ GitLists is a Microsoft Edge extension that helps you browse and manage your Git
 - **Source Code**: Will be shared publicly when the extension is published to official stores
 
 **Note**: Both Edge and Chrome builds are provided as ready-to-install packages in [GitHub Releases](https://github.com/sammerasker/GitList/releases). Download the appropriate version for your browser.
-
-### From Microsoft Edge Add-ons Store
-*Coming soon - extension will be available in the Microsoft Edge Add-ons store*
 
 ### Manual Installation (For End Users)
 
