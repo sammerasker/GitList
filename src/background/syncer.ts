@@ -2,12 +2,7 @@
  * Syncer: Orchestrates fetching and caching of starred repos and lists
  */
 
-import {
-  GitHubRepository,
-  GitHubList,
-  ExtensionSettings,
-  STORAGE_KEYS,
-} from '../shared/types';
+import { GitHubRepository, GitHubList, ExtensionSettings, STORAGE_KEYS } from '../shared/types';
 import { fetchAllStarred, checkAuthStatus } from './githubApi';
 import { getToken, getCachedViewer } from './auth';
 
@@ -72,7 +67,6 @@ export async function syncAllStarred(settings: ExtensionSettings): Promise<{
 
     console.log(`[Sync] Successfully synced ${repos.length} starred repos`);
     return { success: true, repos };
-
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : 'Unknown error';
     console.error('[Sync] Error syncing all starred:', errorMsg);
@@ -88,29 +82,32 @@ export async function syncLists(): Promise<{
   lists?: GitHubList[];
   error?: string;
 }> {
+  let createdTabId: number | null = null; // Track if we created a new tab
+
   try {
     console.log('[Syncer] 📋 Starting Lists sync...');
-    
+
     // Get the current user's username to build the correct stars URL
     const viewer = await getCachedViewer();
     if (!viewer || !viewer.login) {
       return { success: false, error: 'No authenticated user found' };
     }
-    
+
     const userStarsUrl = `https://github.com/${viewer.login}?tab=stars`;
     console.log('[Syncer] 🎯 Target stars URL:', userStarsUrl);
-    
+
     // Find a GitHub tab or open one
     const tabs = await chrome.tabs.query({ url: 'https://github.com/*' });
     console.log(`[Syncer] 🔍 Found ${tabs.length} GitHub tabs`);
-    
+
     let targetTab: chrome.tabs.Tab | null = null;
 
     // Look for a tab on the user's stars page first
     for (const tab of tabs) {
-      const isUserStarsPage = tab.url?.includes(`/${viewer.login}?tab=stars`) && 
-                             !tab.url.includes('/login') && 
-                             !tab.url.includes('/device');
+      const isUserStarsPage =
+        tab.url?.includes(`/${viewer.login}?tab=stars`) &&
+        !tab.url.includes('/login') &&
+        !tab.url.includes('/device');
       if (isUserStarsPage) {
         targetTab = tab;
         console.log('[Syncer] ✅ Found existing user stars page tab:', tab.id, tab.url);
@@ -122,9 +119,18 @@ export async function syncLists(): Promise<{
     if (!targetTab) {
       // Try to reuse any GitHub tab (but not login/device pages)
       for (const tab of tabs) {
-        if (tab.url && !tab.url.includes('/login') && !tab.url.includes('/device') && !tab.url.includes('/settings')) {
+        if (
+          tab.url &&
+          !tab.url.includes('/login') &&
+          !tab.url.includes('/device') &&
+          !tab.url.includes('/settings')
+        ) {
           targetTab = tab;
-          console.log('[Syncer] 🔄 Reusing GitHub tab and navigating to user stars:', tab.id, tab.url);
+          console.log(
+            '[Syncer] 🔄 Reusing GitHub tab and navigating to user stars:',
+            tab.id,
+            tab.url
+          );
           break;
         }
       }
@@ -137,7 +143,8 @@ export async function syncLists(): Promise<{
         url: userStarsUrl,
         active: false,
       });
-      console.log('[Syncer] ✅ Tab created:', targetTab.id);
+      createdTabId = targetTab.id!; // Track that we created this tab
+      console.log('[Syncer] ✅ Tab created:', targetTab.id, '(will auto-close after sync)');
     } else if (!targetTab.url?.includes(`/${viewer.login}?tab=stars`)) {
       // Navigate existing tab to user stars page
       console.log('[Syncer] 🧭 Navigating tab to user stars page...');
@@ -153,9 +160,19 @@ export async function syncLists(): Promise<{
     const scriptReady = await ensureContentScript(targetTab.id!);
     if (!scriptReady) {
       console.error('[Syncer] ❌ Content script not available on GitHub tab');
+      
+      // Close tab if we created it
+      if (createdTabId !== null) {
+        console.log('[Syncer] 🗑️  Closing created tab due to error:', createdTabId);
+        await chrome.tabs.remove(createdTabId).catch((err) => {
+          console.warn('[Syncer] ⚠️  Failed to close tab:', err);
+        });
+      }
+      
       return {
         success: false,
-        error: 'Content script not available on GitHub tab. Please ensure you are on a GitHub page.',
+        error:
+          'Content script not available on GitHub tab. Please ensure you are on a GitHub page.',
       };
     }
 
@@ -167,82 +184,149 @@ export async function syncLists(): Promise<{
         return;
       }
 
-      console.log(`[Syncer] 📤 Sending SCRAPE_STARS_PAGE message to tab ${targetTab.id} (${targetTab.url})...`);
+      console.log(
+        `[Syncer] 📤 Sending SCRAPE_STARS_PAGE message to tab ${targetTab.id} (${targetTab.url})...`
+      );
       const timeout = setTimeout(() => {
         console.error('[Syncer] ❌ Content script timeout after 10s');
+        
+        // Close tab if we created it
+        if (createdTabId !== null) {
+          console.log('[Syncer] 🗑️  Closing created tab due to timeout:', createdTabId);
+          chrome.tabs.remove(createdTabId).catch((err) => {
+            console.warn('[Syncer] ⚠️  Failed to close tab:', err);
+          });
+        }
+        
         resolve({ success: false, error: 'Timeout waiting for content script response' });
       }, 10000); // Increased timeout
 
-      chrome.tabs.sendMessage(
-        targetTab.id,
-        { type: 'SCRAPE_STARS_PAGE' } as any,
-        (response) => {
-          clearTimeout(timeout);
+      chrome.tabs.sendMessage(targetTab.id, { type: 'SCRAPE_STARS_PAGE' } as any, (response) => {
+        clearTimeout(timeout);
+
+        if (chrome.runtime.lastError) {
+          console.error('[Syncer] ❌ Content script error:', chrome.runtime.lastError.message);
           
-          if (chrome.runtime.lastError) {
-            console.error('[Syncer] ❌ Content script error:', chrome.runtime.lastError.message);
-            resolve({
-              success: false,
-              error: 'Could not communicate with GitHub page. Sign in to GitHub and visit your stars page to sync lists.',
+          // Close tab if we created it
+          if (createdTabId !== null) {
+            console.log('[Syncer] 🗑️  Closing created tab due to error:', createdTabId);
+            chrome.tabs.remove(createdTabId).catch((err) => {
+              console.warn('[Syncer] ⚠️  Failed to close tab:', err);
             });
-            return;
           }
+          
+          resolve({
+            success: false,
+            error:
+              'Could not communicate with GitHub page. Sign in to GitHub and visit your stars page to sync lists.',
+          });
+          return;
+        }
 
-          if (!response) {
-            console.error('[Syncer] ❌ No response from content script');
-            resolve({ success: false, error: 'No response from content script' });
-            return;
-          }
-
-          console.log('[Syncer] 📨 Content script response received:', { success: response.success, listsCount: response.data?.length || 0 });
-
-          if (response?.success) {
-            const lists = response.data || [];
-            console.log(`[Syncer] ✅ Got ${lists.length} lists from scraper`);
-            
-            // Log list details
-            lists.forEach((list: GitHubList, idx: number) => {
-              console.log(`[Syncer]   📁 [${idx + 1}/${lists.length}] "${list.name}" - ${list.repositories.length} repos`);
+        if (!response) {
+          console.error('[Syncer] ❌ No response from content script');
+          
+          // Close tab if we created it
+          if (createdTabId !== null) {
+            console.log('[Syncer] 🗑️  Closing created tab due to no response:', createdTabId);
+            chrome.tabs.remove(createdTabId).catch((err) => {
+              console.warn('[Syncer] ⚠️  Failed to close tab:', err);
             });
-            
-            // Check if user has no lists
-            if (lists.length === 0) {
-              console.log('[Syncer] ℹ️  No lists found - user may not have created any lists yet');
-              console.log('[Syncer] 💡 Create lists at: https://github.com/stars');
-              
-              // Cache empty result but don't treat as error
-              chrome.storage.local.set({
-                [STORAGE_KEYS.LISTS_CACHE]: [],
-                [STORAGE_KEYS.LAST_SYNC_LISTS]: Date.now(),
-              });
-              
-              resolve({ 
-                success: true, 
-                lists: [],
-                error: 'No lists found. Create lists at github.com/stars to organize your starred repos.'
-              });
-              return;
-            }
-            
-            // Cache results
+          }
+          
+          resolve({ success: false, error: 'No response from content script' });
+          return;
+        }
+
+        console.log('[Syncer] 📨 Content script response received:', {
+          success: response.success,
+          listsCount: response.data?.length || 0,
+        });
+
+        if (response?.success) {
+          const lists = response.data || [];
+          console.log(`[Syncer] ✅ Got ${lists.length} lists from scraper`);
+
+          // Log list details
+          lists.forEach((list: GitHubList, idx: number) => {
+            console.log(
+              `[Syncer]   📁 [${idx + 1}/${lists.length}] "${list.name}" - ${list.repositories.length} repos`
+            );
+          });
+
+          // Check if user has no lists
+          if (lists.length === 0) {
+            console.log('[Syncer] ℹ️  No lists found - user may not have created any lists yet');
+            console.log('[Syncer] 💡 Create lists at: https://github.com/stars');
+
+            // Cache empty result but don't treat as error
             chrome.storage.local.set({
-              [STORAGE_KEYS.LISTS_CACHE]: lists,
+              [STORAGE_KEYS.LISTS_CACHE]: [],
               [STORAGE_KEYS.LAST_SYNC_LISTS]: Date.now(),
             });
 
-            console.log(`[Syncer] 💾 Cached ${lists.length} lists`);
-            resolve({ success: true, lists });
-          } else {
-            const error = response?.error || 'Failed to scrape lists';
-            console.error('[Syncer] ❌ Scrape error:', error);
-            resolve({ success: false, error });
+            // Close tab if we created it
+            if (createdTabId !== null) {
+              console.log('[Syncer] 🗑️  Closing created tab (no lists found):', createdTabId);
+              chrome.tabs.remove(createdTabId).catch((err) => {
+                console.warn('[Syncer] ⚠️  Failed to close tab:', err);
+              });
+            }
+
+            resolve({
+              success: true,
+              lists: [],
+              error:
+                'No lists found. Create lists at github.com/stars to organize your starred repos.',
+            });
+            return;
           }
+
+          // Cache results
+          chrome.storage.local.set({
+            [STORAGE_KEYS.LISTS_CACHE]: lists,
+            [STORAGE_KEYS.LAST_SYNC_LISTS]: Date.now(),
+          });
+
+          console.log(`[Syncer] 💾 Cached ${lists.length} lists`);
+          
+          // Close tab if we created it (successful sync)
+          if (createdTabId !== null) {
+            console.log('[Syncer] 🗑️  Closing created tab (sync complete):', createdTabId);
+            chrome.tabs.remove(createdTabId).catch((err) => {
+              console.warn('[Syncer] ⚠️  Failed to close tab:', err);
+            });
+          }
+          
+          resolve({ success: true, lists });
+        } else {
+          const error = response?.error || 'Failed to scrape lists';
+          console.error('[Syncer] ❌ Scrape error:', error);
+          
+          // Close tab if we created it
+          if (createdTabId !== null) {
+            console.log('[Syncer] 🗑️  Closing created tab due to scrape error:', createdTabId);
+            chrome.tabs.remove(createdTabId).catch((err) => {
+              console.warn('[Syncer] ⚠️  Failed to close tab:', err);
+            });
+          }
+          
+          resolve({ success: false, error });
         }
-      );
+      });
     });
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : 'Unknown error';
     console.error('[Sync] Error syncing lists:', errorMsg);
+    
+    // Close tab if we created it
+    if (createdTabId !== null) {
+      console.log('[Syncer] 🗑️  Closing created tab due to exception:', createdTabId);
+      chrome.tabs.remove(createdTabId).catch((err) => {
+        console.warn('[Syncer] ⚠️  Failed to close tab:', err);
+      });
+    }
+    
     return { success: false, error: errorMsg };
   }
 }
@@ -282,59 +366,55 @@ async function waitForTabComplete(tabId: number): Promise<void> {
  */
 async function ensureContentScript(tabId: number): Promise<boolean> {
   console.log(`[Syncer] 🔍 Checking if content script is available in tab ${tabId}...`);
-  
+
   // First, try to ping the content script
   return new Promise((resolve) => {
-    chrome.tabs.sendMessage(
-      tabId,
-      { type: '__PING__' },
-      (response) => {
-        if (chrome.runtime.lastError) {
-          console.log(`[Syncer] ⚠️  Content script not responding: ${chrome.runtime.lastError.message}`);
-          console.log(`[Syncer] 💉 Attempting to inject content script...`);
-          
-          // Content script not available, try to inject it
-          chrome.scripting.executeScript(
-            {
-              target: { tabId },
-              files: ['content/githubScraper.js']
-            },
-            () => {
-              if (chrome.runtime.lastError) {
-                console.error(`[Syncer] ❌ Failed to inject content script: ${chrome.runtime.lastError.message}`);
-                resolve(false);
-                return;
-              }
-              
-              console.log(`[Syncer] ✅ Content script injected successfully`);
-              
-              // Wait a bit for the script to initialize, then verify with another ping
-              setTimeout(() => {
-                chrome.tabs.sendMessage(
-                  tabId,
-                  { type: '__PING__' },
-                  (verifyResponse) => {
-                    if (chrome.runtime.lastError || !verifyResponse?.ok) {
-                      console.error(`[Syncer] ❌ Content script still not responding after injection`);
-                      resolve(false);
-                    } else {
-                      console.log(`[Syncer] ✅ Content script verified and ready`);
-                      resolve(true);
-                    }
-                  }
-                );
-              }, 500);
+    chrome.tabs.sendMessage(tabId, { type: '__PING__' }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.log(
+          `[Syncer] ⚠️  Content script not responding: ${chrome.runtime.lastError.message}`
+        );
+        console.log(`[Syncer] 💉 Attempting to inject content script...`);
+
+        // Content script not available, try to inject it
+        chrome.scripting.executeScript(
+          {
+            target: { tabId },
+            files: ['content/githubScraper.js'],
+          },
+          () => {
+            if (chrome.runtime.lastError) {
+              console.error(
+                `[Syncer] ❌ Failed to inject content script: ${chrome.runtime.lastError.message}`
+              );
+              resolve(false);
+              return;
             }
-          );
-        } else if (response?.ok) {
-          console.log(`[Syncer] ✅ Content script already available`);
-          resolve(true);
-        } else {
-          console.error(`[Syncer] ❌ Content script responded but with unexpected response`);
-          resolve(false);
-        }
+
+            console.log(`[Syncer] ✅ Content script injected successfully`);
+
+            // Wait a bit for the script to initialize, then verify with another ping
+            setTimeout(() => {
+              chrome.tabs.sendMessage(tabId, { type: '__PING__' }, (verifyResponse) => {
+                if (chrome.runtime.lastError || !verifyResponse?.ok) {
+                  console.error(`[Syncer] ❌ Content script still not responding after injection`);
+                  resolve(false);
+                } else {
+                  console.log(`[Syncer] ✅ Content script verified and ready`);
+                  resolve(true);
+                }
+              });
+            }, 500);
+          }
+        );
+      } else if (response?.ok) {
+        console.log(`[Syncer] ✅ Content script already available`);
+        resolve(true);
+      } else {
+        console.error(`[Syncer] ❌ Content script responded but with unexpected response`);
+        resolve(false);
       }
-    );
+    });
   });
 }
 
@@ -343,7 +423,7 @@ async function ensureContentScript(tabId: number): Promise<boolean> {
  */
 export async function syncAll(settings: ExtensionSettings): Promise<SyncState> {
   console.log('[Sync] Starting full sync...');
-  
+
   const state = await getSyncState();
 
   // Sync all starred
@@ -359,7 +439,11 @@ export async function syncAll(settings: ExtensionSettings): Promise<SyncState> {
   if (settings.listsSyncEnabled) {
     console.log('[Sync] 📋 Lists sync is enabled - starting syncLists...');
     const listsResult = await syncLists();
-    console.log('[Sync] 📊 Lists sync result:', { success: listsResult.success, count: listsResult.lists?.length || 0, error: listsResult.error });
+    console.log('[Sync] 📊 Lists sync result:', {
+      success: listsResult.success,
+      count: listsResult.lists?.length || 0,
+      error: listsResult.error,
+    });
     if (listsResult.success && listsResult.lists) {
       state.lists = listsResult.lists;
       state.lastSyncLists = Date.now();

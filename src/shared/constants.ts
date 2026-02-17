@@ -36,7 +36,7 @@ export const GITHUB_SCRAPER_SELECTORS = {
   // Stars page list items
   LIST_ITEM: '[data-filterable-for="your-lists"] a[href*="/stars/lists/"]',
   LIST_ITEM_NAME: 'span',
-  
+
   // List page repo items
   REPO_ITEM: 'div[class*="Box-row"]',
   REPO_LINK: 'a[data-testid="item-title"]',

@@ -52,6 +52,7 @@ export interface ExtensionSettings {
   customClientId?: string | null; // Optional override for GitHub OAuth Client ID
   includePrivateRepos: boolean; // Default true - requires 'repo' scope
   sessionOnlyToken: boolean; // Default false - store token in session storage
+  darkMode: 'auto' | 'light' | 'dark'; // Default 'auto' - theme preference
 }
 
 export const DEFAULT_SETTINGS: ExtensionSettings = {
@@ -61,22 +62,21 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   customClientId: null,
   includePrivateRepos: true,
   sessionOnlyToken: false,
+  darkMode: 'auto',
 };
 
 // Message protocol (discriminated unions)
 export type Message = AuthMessage | SyncMessage | SettingsMessage | StateMessage;
 
 // Auth messages
-export type AuthMessage = 
+export type AuthMessage =
   | { type: 'CONNECT_START' }
   | { type: 'CONNECT_ABORT' }
   | { type: 'DISCONNECT' }
   | { type: 'SET_CLIENT_ID'; payload: string };
 
 // Sync messages
-export type SyncMessage =
-  | { type: 'REFRESH_NOW' }
-  | { type: 'SYNC_ALARM' };
+export type SyncMessage = { type: 'REFRESH_NOW' } | { type: 'SYNC_ALARM' };
 
 // Settings messages
 export type SettingsMessage =
@@ -84,8 +84,7 @@ export type SettingsMessage =
   | { type: 'UPDATE_SETTINGS'; payload: Partial<ExtensionSettings> };
 
 // State request
-export type StateMessage =
-  | { type: 'GET_STATE' };
+export type StateMessage = { type: 'GET_STATE' };
 
 // Responses from background
 export interface StateUpdate {

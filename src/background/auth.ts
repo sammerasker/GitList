@@ -3,12 +3,7 @@
  * Manages authentication without needing a backend server
  */
 
-import {
-  DEVICE_CODE_URL,
-  TOKEN_URL,
-  API_BASE_URL,
-  getOAuthScopes,
-} from '../shared/authConfig';
+import { DEVICE_CODE_URL, TOKEN_URL, API_BASE_URL, getOAuthScopes } from '../shared/authConfig';
 import {
   DEVICE_FLOW_INITIAL_INTERVAL_SECONDS,
   DEVICE_FLOW_MAX_INTERVAL_SECONDS,
@@ -39,13 +34,16 @@ let pollAbort: AbortController | null = null;
 /**
  * Initiate device flow: request device code from GitHub
  */
-export async function requestDeviceCode(clientId: string, includePrivateRepos: boolean): Promise<DeviceCodeResponse> {
+export async function requestDeviceCode(
+  clientId: string,
+  includePrivateRepos: boolean
+): Promise<DeviceCodeResponse> {
   const scopes = getOAuthScopes(includePrivateRepos);
-  
+
   const response = await fetchWithTimeout(DEVICE_CODE_URL, {
     method: 'POST',
     headers: {
-      'Accept': 'application/json',
+      Accept: 'application/json',
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -79,7 +77,7 @@ export async function pollForToken(
       const response = await fetchWithTimeout(TOKEN_URL, {
         method: 'POST',
         headers: {
-          'Accept': 'application/json',
+          Accept: 'application/json',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -153,8 +151,8 @@ export function abortTokenPoll(): void {
 export async function fetchViewerIdentity(token: string) {
   const response = await fetchWithTimeout(`${API_BASE_URL}/user`, {
     headers: {
-      'Authorization': `Bearer ${token}`,
-      'Accept': 'application/vnd.github.v3+json',
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github.v3+json',
     },
   });
 
@@ -184,9 +182,10 @@ export async function validateToken(token: string): Promise<boolean> {
 export async function storeToken(token: string, sessionOnly: boolean = false): Promise<void> {
   // Never log the actual token
   console.log('[Auth] Storing token (value hidden for security)');
-  
-  const storage = sessionOnly && chrome.storage.session ? chrome.storage.session : chrome.storage.local;
-  
+
+  const storage =
+    sessionOnly && chrome.storage.session ? chrome.storage.session : chrome.storage.local;
+
   await storage.set({
     [STORAGE_KEYS.TOKEN]: token,
   });
@@ -197,16 +196,17 @@ export async function storeToken(token: string, sessionOnly: boolean = false): P
  * Never logs the token value
  */
 export async function getToken(sessionOnly: boolean = false): Promise<string | null> {
-  const storage = sessionOnly && chrome.storage.session ? chrome.storage.session : chrome.storage.local;
-  
+  const storage =
+    sessionOnly && chrome.storage.session ? chrome.storage.session : chrome.storage.local;
+
   const data = await storage.get([STORAGE_KEYS.TOKEN]);
   const token = data[STORAGE_KEYS.TOKEN] || null;
-  
+
   // Never log the actual token
   if (token) {
     console.log('[Auth] Token retrieved from storage (value hidden for security)');
   }
-  
+
   return token;
 }
 
@@ -215,10 +215,10 @@ export async function getToken(sessionOnly: boolean = false): Promise<string | n
  */
 export async function clearToken(): Promise<void> {
   console.log('[Auth] Clearing token from all storage');
-  
+
   // Clear from both local and session storage
   await chrome.storage.local.remove([STORAGE_KEYS.TOKEN]);
-  
+
   if (chrome.storage.session) {
     await chrome.storage.session.remove([STORAGE_KEYS.TOKEN]);
   }

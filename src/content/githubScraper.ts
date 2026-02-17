@@ -11,12 +11,12 @@ import { createListId } from '../shared/utils';
 // ============================================================
 
 // Debug counters for monitoring
-let debugCounters = {
+const debugCounters = {
   skippedInvalidListUrls: 0,
   skippedInvalidRepos: 0,
   fetchedListPages: 0,
   throttledOrRateLimitedCount: 0,
-  actualRateLimitHit: false
+  actualRateLimitHit: false,
 };
 
 /**
@@ -38,10 +38,12 @@ function normalizeListName(name: string): string {
 function isValidListUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
-    return parsed.protocol === 'https:' &&
-           parsed.hostname === 'github.com' &&
-           parsed.pathname.includes('/stars/') &&
-           parsed.pathname.includes('/lists/');
+    return (
+      parsed.protocol === 'https:' &&
+      parsed.hostname === 'github.com' &&
+      parsed.pathname.includes('/stars/') &&
+      parsed.pathname.includes('/lists/')
+    );
   } catch {
     return false;
   }
@@ -53,17 +55,17 @@ function isValidListUrl(url: string): boolean {
 function normalizeRepoHrefToFullName(href: string): string | null {
   const match = href.match(/^\/([^/]+)\/([^/]+)(?:\/.*)?$/);
   if (!match) return null;
-  
+
   const [, owner, repo] = match;
-  
+
   // Reject system/meta pages
   const denylist = ['settings', 'notifications', 'pulls', 'issues', 'marketplace', 'explore'];
   if (denylist.includes(owner)) return null;
-  
+
   // Validate format
   const fullName = `${owner}/${repo}`;
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(fullName)) return null;
-  
+
   return fullName;
 }
 
@@ -78,22 +80,25 @@ function normalizeRepoUrlFromHref(href: string, fullName: string): string {
 /**
  * Fetch HTML with timeout and basic error handling
  */
-async function fetchHtmlWithTimeout(url: string, timeoutMs: number = 20000): Promise<{ok: boolean, status: number, text?: string, isRateLimit?: boolean}> {
+async function fetchHtmlWithTimeout(
+  url: string,
+  timeoutMs: number = 20000
+): Promise<{ ok: boolean; status: number; text?: string; isRateLimit?: boolean }> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  
+
   try {
     const response = await fetch(url, {
       credentials: 'same-origin', // Changed from 'include' to 'same-origin'
       headers: {
-        'Accept': 'text/html,application/xhtml+xml'
+        Accept: 'text/html,application/xhtml+xml',
         // Removed 'User-Agent' header as it's forbidden in browser fetch
       },
-      signal: controller.signal
+      signal: controller.signal,
     });
-    
+
     clearTimeout(timeoutId);
-    
+
     if (!response.ok) {
       // Check if this is a rate limiting response
       let isRateLimit = false;
@@ -118,13 +123,12 @@ async function fetchHtmlWithTimeout(url: string, timeoutMs: number = 20000): Pro
           }
         }
       }
-      
+
       return { ok: false, status: response.status, isRateLimit };
     }
-    
+
     const text = await response.text();
     return { ok: true, status: response.status, text };
-    
   } catch (error) {
     clearTimeout(timeoutId);
     return { ok: false, status: 0 };
@@ -141,20 +145,20 @@ async function runWithConcurrencyLimit<T, R>(
   concurrency: number = 2
 ): Promise<R[]> {
   const results: R[] = new Array(items.length);
-  
+
   // Create all tasks but don't start them yet
   const tasks = items.map(async (item, index) => {
     // Add jitter delay
-    await new Promise(resolve => setTimeout(resolve, 150 + Math.random() * 150));
+    await new Promise((resolve) => setTimeout(resolve, 150 + Math.random() * 150));
     results[index] = await processor(item, index);
   });
-  
+
   // Process tasks in batches with concurrency limit
   for (let i = 0; i < tasks.length; i += concurrency) {
     const batch = tasks.slice(i, i + concurrency);
     await Promise.all(batch);
   }
-  
+
   return results;
 }
 
@@ -162,7 +166,9 @@ async function runWithConcurrencyLimit<T, R>(
 // STARTUP & DEBUGGING
 // ============================================================
 
-console.log(`[CS] 🟢 Content script loaded at ${window.location.href} - ${new Date().toISOString()}`);
+console.log(
+  `[CS] 🟢 Content script loaded at ${window.location.href} - ${new Date().toISOString()}`
+);
 
 /**
  * Scrape the GitHub Stars page to extract list metadata
@@ -200,11 +206,11 @@ function scrapeStarsPage(): Array<{ name: string; url: string }> {
     '[class*="list"] a[href*="/lists/"]',
     // Generic sidebar patterns
     '.sidebar a[href*="/lists/"]',
-    '.Layout-sidebar a[href*="/lists/"]'
+    '.Layout-sidebar a[href*="/lists/"]',
   ];
 
   let foundLinks: NodeListOf<Element> | null = null;
-  
+
   for (const selector of selectors) {
     const links = document.querySelectorAll(selector);
     if (links.length > 0) {
@@ -216,36 +222,38 @@ function scrapeStarsPage(): Array<{ name: string; url: string }> {
 
   if (!foundLinks || foundLinks.length === 0) {
     console.warn('[CS] ⚠️  No list links found with any selector');
-    
+
     // Debug: Let's see what links are actually on the page
     const allLinks = document.querySelectorAll('a[href]');
-    const listRelatedLinks = Array.from(allLinks).filter(link => {
+    const listRelatedLinks = Array.from(allLinks).filter((link) => {
       const href = link.getAttribute('href') || '';
       const text = link.textContent?.trim() || '';
       return href.includes('lists') || text.toLowerCase().includes('list');
     });
-    
+
     console.log('[CS] 🔍 Debug - Found', listRelatedLinks.length, 'list-related links:');
     listRelatedLinks.slice(0, 10).forEach((link, i) => {
       console.log(`[CS]   ${i + 1}. "${link.textContent?.trim()}" -> ${link.getAttribute('href')}`);
     });
-    
+
     // Try to detect if user is on the right page
-    const isStarsPage = window.location.pathname.includes('/stars') || window.location.search.includes('tab=stars');
-    const hasStarsContent = document.querySelector('[data-testid="starred-repos"]') || 
-                           document.querySelector('.js-navigation-item[data-selected-links*="stars"]') ||
-                           document.querySelector('[data-testid="stars-repo-list"]') ||
-                           document.title.toLowerCase().includes('stars');
-    
+    const isStarsPage =
+      window.location.pathname.includes('/stars') || window.location.search.includes('tab=stars');
+    const hasStarsContent =
+      document.querySelector('[data-testid="starred-repos"]') ||
+      document.querySelector('.js-navigation-item[data-selected-links*="stars"]') ||
+      document.querySelector('[data-testid="stars-repo-list"]') ||
+      document.title.toLowerCase().includes('stars');
+
     console.log('[CS] 🔍 Page analysis:', {
       isStarsPage,
       hasStarsContent,
       url: window.location.href,
       title: document.title,
       pathname: window.location.pathname,
-      search: window.location.search
+      search: window.location.search,
     });
-    
+
     return lists;
   }
 
@@ -262,14 +270,14 @@ function scrapeStarsPage(): Array<{ name: string; url: string }> {
 
     // Ensure absolute URL
     const url = href.startsWith('http') ? href : `https://github.com${href}`;
-    
+
     // Validate URL
     if (!isValidListUrl(url)) {
       debugCounters.skippedInvalidListUrls++;
       console.log(`[CS] ⚠️  Skipping invalid list URL: ${url}`);
       continue;
     }
-    
+
     // Avoid duplicates
     if (seen.has(url)) continue;
     seen.add(url);
@@ -278,7 +286,9 @@ function scrapeStarsPage(): Array<{ name: string; url: string }> {
     console.log(`[CS] ✅ Found list: "${name}" -> ${url}`);
   }
 
-  console.log(`[CS] ✅ Scraped ${lists.length} lists from stars page (skipped ${debugCounters.skippedInvalidListUrls} invalid URLs)`);
+  console.log(
+    `[CS] ✅ Scraped ${lists.length} lists from stars page (skipped ${debugCounters.skippedInvalidListUrls} invalid URLs)`
+  );
   return lists;
 }
 
@@ -297,12 +307,14 @@ async function scrapeListPage(listUrl: string): Promise<GitHubRepository[]> {
 
     console.log(`[CS] 🔍 Fetching list page: ${listUrl}`);
     debugCounters.fetchedListPages++;
-    
+
     // Fetch with timeout and safer credentials
     const result = await fetchHtmlWithTimeout(listUrl, 20000); // Increased timeout to 20s
-    
-    console.log(`[CS] 📡 Fetch result for ${listUrl}: status=${result.status}, ok=${result.ok}, isRateLimit=${result.isRateLimit || false}`);
-    
+
+    console.log(
+      `[CS] 📡 Fetch result for ${listUrl}: status=${result.status}, ok=${result.ok}, isRateLimit=${result.isRateLimit || false}`
+    );
+
     if (!result.ok) {
       if (result.isRateLimit) {
         debugCounters.throttledOrRateLimitedCount++;
@@ -334,11 +346,11 @@ async function scrapeListPage(listUrl: string): Promise<GitHubRepository[]> {
       // Alternative: Box row items with repo links
       '.Box-row a[href^="/"][href*="/"]',
       // Broader: Any repo-like links in h3
-      'h3 a[href^="/"], .h4 a[href^="/"]'
+      'h3 a[href^="/"], .h4 a[href^="/"]',
     ];
 
     let repoItems: NodeListOf<Element> | null = null;
-    
+
     for (const selector of repoSelectors) {
       const items = doc.querySelectorAll(selector);
       if (items.length > 0) {
@@ -358,14 +370,14 @@ async function scrapeListPage(listUrl: string): Promise<GitHubRepository[]> {
     for (const item of Array.from(repoItems)) {
       const link = item as HTMLAnchorElement;
       const href = link.getAttribute('href') || '';
-      
+
       // Normalize and validate repo href
       const fullName = normalizeRepoHrefToFullName(href);
       if (!fullName) {
         debugCounters.skippedInvalidRepos++;
         continue;
       }
-      
+
       // Avoid duplicates
       if (seen.has(fullName)) continue;
       seen.add(fullName);
@@ -393,9 +405,10 @@ async function scrapeListPage(listUrl: string): Promise<GitHubRepository[]> {
       console.log(`[CS] ✅ Found repo: ${fullName}`);
     }
 
-    console.log(`[CS] ✅ Scraped ${repos.length} repos from list page: ${listUrl} (skipped ${debugCounters.skippedInvalidRepos} invalid)`);
+    console.log(
+      `[CS] ✅ Scraped ${repos.length} repos from list page: ${listUrl} (skipped ${debugCounters.skippedInvalidRepos} invalid)`
+    );
     return repos;
-
   } catch (error) {
     console.error(`[CS] ❌ Error scraping list page ${listUrl}:`, error);
     throw error;
@@ -415,12 +428,14 @@ async function scrapeAllLists(): Promise<GitHubList[]> {
 
   try {
     console.log('[CS] 🔍 Starting comprehensive list scraping...');
-    
+
     // First, check if we're on a page that has the lists info
     const listMetadata = scrapeStarsPage();
 
     if (listMetadata.length === 0) {
-      console.warn('[CS] ⚠️  No lists found - user may not be logged into github.com or have no lists');
+      console.warn(
+        '[CS] ⚠️  No lists found - user may not be logged into github.com or have no lists'
+      );
       return lists;
     }
 
@@ -431,29 +446,35 @@ async function scrapeAllLists(): Promise<GitHubList[]> {
       listMetadata,
       async ({ name, url }, index) => {
         processed++;
-        
+
         try {
           console.log(`[CS] 📄 Processing list ${index + 1}/${listMetadata.length}: "${name}"`);
-          
+
           // Early stop only if we've hit actual rate limits (not just any 403)
           if (debugCounters.actualRateLimitHit) {
-            console.warn(`[CS] ⚠️  Stopping due to actual rate limiting, returning partial results`);
+            console.warn(
+              `[CS] ⚠️  Stopping due to actual rate limiting, returning partial results`
+            );
             stoppedEarly = true;
             return null;
           }
-          
+
           // Validate URL before processing
           if (!isValidListUrl(url)) {
             skippedInvalidUrl++;
-            console.log(`[CS] ListFetch ${index + 1}/${listMetadata.length} ${name} ${url} -> status=INVALID ok=false`);
+            console.log(
+              `[CS] ListFetch ${index + 1}/${listMetadata.length} ${name} ${url} -> status=INVALID ok=false`
+            );
             return null;
           }
-          
+
           const repositories = await scrapeListPage(url);
           const listId = createListId(url, name);
 
           succeeded++;
-          console.log(`[CS] ListFetch ${index + 1}/${listMetadata.length} ${name} ${url} -> status=200 ok=true`);
+          console.log(
+            `[CS] ListFetch ${index + 1}/${listMetadata.length} ${name} ${url} -> status=200 ok=true`
+          );
           console.log(`[CS] ✅ Successfully processed "${name}" - ${repositories.length} repos`);
           return {
             id: listId,
@@ -463,7 +484,9 @@ async function scrapeAllLists(): Promise<GitHubList[]> {
           };
         } catch (error) {
           failed++;
-          console.log(`[CS] ListFetch ${index + 1}/${listMetadata.length} ${name} ${url} -> status=ERROR ok=false`);
+          console.log(
+            `[CS] ListFetch ${index + 1}/${listMetadata.length} ${name} ${url} -> status=ERROR ok=false`
+          );
           console.error(`[CS] ❌ Failed to scrape list "${name}":`, error);
           return null; // Continue with other lists
         }
@@ -480,9 +503,10 @@ async function scrapeAllLists(): Promise<GitHubList[]> {
 
     // Log completion AFTER all processing is done
     console.log(`[CS] ✅ Scraping complete - ${lists.length} lists with repositories`);
-    console.log(`[CS] 📊 Final counters: processed=${processed}, succeeded=${succeeded}, failed=${failed}, skippedInvalidUrl=${skippedInvalidUrl}, stoppedEarly=${stoppedEarly}`);
+    console.log(
+      `[CS] 📊 Final counters: processed=${processed}, succeeded=${succeeded}, failed=${failed}, skippedInvalidUrl=${skippedInvalidUrl}, stoppedEarly=${stoppedEarly}`
+    );
     console.log(`[CS] 📊 Debug counters:`, debugCounters);
-
   } catch (error) {
     console.error('[CS] ❌ Error in scrapeAllLists:', error);
   }
@@ -506,7 +530,7 @@ function isLoggedIntoGitHub(): boolean {
     // User menu or dropdown
     '.js-feature-preview-indicator',
     // Any element with user login in data attributes
-    '[data-login]'
+    '[data-login]',
   ];
 
   for (const selector of indicators) {
@@ -519,7 +543,7 @@ function isLoggedIntoGitHub(): boolean {
   // Check for absence of login/signup buttons
   const loginButtons = document.querySelectorAll('a[href*="/login"], a[href*="/join"]');
   const isLoggedOut = loginButtons.length > 0;
-  
+
   console.log(`[CS] 🔐 Login status - logged out indicators: ${loginButtons.length}`);
   return !isLoggedOut;
 }
@@ -528,7 +552,9 @@ function isLoggedIntoGitHub(): boolean {
  * Message handler
  */
 chrome.runtime.onMessage.addListener((message: ContentScriptMessage, sender, sendResponse) => {
-  console.log(`[CS] 📨 Message received: "${message.type}" at ${window.location.href} - ${new Date().toISOString()}`);
+  console.log(
+    `[CS] 📨 Message received: "${message.type}" at ${window.location.href} - ${new Date().toISOString()}`
+  );
 
   // Handle ping message for content script detection
   if ((message as any).type === '__PING__') {
@@ -541,11 +567,11 @@ chrome.runtime.onMessage.addListener((message: ContentScriptMessage, sender, sen
     try {
       if (message.type === 'SCRAPE_STARS_PAGE') {
         console.log('[CS] ▶️  Starting stars page scrape...');
-        
+
         // Check if logged in
         const loggedIn = isLoggedIntoGitHub();
         console.log(`[CS] 🔐 Logged in status: ${loggedIn}`);
-        
+
         if (!loggedIn) {
           console.warn('[CS] ⚠️  User not logged into GitHub');
           sendResponse({
@@ -558,22 +584,23 @@ chrome.runtime.onMessage.addListener((message: ContentScriptMessage, sender, sen
         console.log('[CS] 📋 Scraping all lists...');
         const lists = await scrapeAllLists();
         console.log(`[CS] ✅ Scraping completed - found ${lists.length} lists`);
-        
+
         // Log detailed results
         lists.forEach((list, idx) => {
-          console.log(`[CS]   📁 [${idx + 1}/${lists.length}] "${list.name}" - ${list.repositories.length} repos`);
+          console.log(
+            `[CS]   📁 [${idx + 1}/${lists.length}] "${list.name}" - ${list.repositories.length} repos`
+          );
         });
 
         sendResponse({
           success: true,
           data: lists,
         } as ScrapeResult);
-
       } else if (message.type === 'SCRAPE_LIST_PAGE') {
         console.log(`[CS] ▶️  Scraping list page: ${message.url}`);
         const repos = await scrapeListPage(message.url);
         console.log(`[CS] ✅ Found ${repos.length} repos in list`);
-        
+
         sendResponse({
           success: true,
           data: { repositories: repos },
@@ -586,7 +613,10 @@ chrome.runtime.onMessage.addListener((message: ContentScriptMessage, sender, sen
         } as ScrapeResult);
       }
     } catch (error) {
-      console.error('[CS] ❌ Error handling message:', error instanceof Error ? error.message : String(error));
+      console.error(
+        '[CS] ❌ Error handling message:',
+        error instanceof Error ? error.message : String(error)
+      );
       sendResponse({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',

@@ -14,7 +14,7 @@ export async function fetchWithTimeout(
 ): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  
+
   try {
     const response = await fetch(url, {
       ...options,
@@ -29,14 +29,12 @@ export async function fetchWithTimeout(
 /**
  * Parse Link header for pagination
  */
-export function parseLinkHeader(
-  linkHeader: string | null
-): { next?: string; last?: string } {
+export function parseLinkHeader(linkHeader: string | null): { next?: string; last?: string } {
   if (!linkHeader) return {};
-  
+
   const links: Record<string, string> = {};
   const parts = linkHeader.split(',');
-  
+
   for (const part of parts) {
     const match = part.match(/<([^>]+)>;\s*rel="([^"]+)"/);
     if (match) {
@@ -44,7 +42,7 @@ export function parseLinkHeader(
       links[rel] = url;
     }
   }
-  
+
   return { next: links.next, last: links.last };
 }
 
@@ -53,19 +51,19 @@ export function parseLinkHeader(
  */
 export function formatLastSyncTime(timestamp?: number): string {
   if (!timestamp) return 'Never';
-  
+
   const date = new Date(timestamp);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
-  
+
   if (diffMins < 1) return 'Just now';
   if (diffMins < 60) return `${diffMins}m ago`;
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays < 7) return `${diffDays}d ago`;
-  
+
   return date.toLocaleDateString();
 }
 
@@ -77,7 +75,7 @@ export function createListId(url: string, name: string): string {
   // e.g., https://github.com/username/stars/lists/mylist -> mylist
   const match = url.match(/\/lists\/([^/?]+)/);
   if (match) return match[1];
-  
+
   // Fallback to name hash
   return `list_${name.toLowerCase().replace(/\s+/g, '_')}`;
 }
@@ -86,7 +84,7 @@ export function createListId(url: string, name: string): string {
  * Sleep utility for delays
  */
 export function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
@@ -122,7 +120,7 @@ export function debounce<T extends (...args: any[]) => any>(
   wait: number
 ): (...args: Parameters<T>) => void {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
-  
+
   return function (...args: Parameters<T>) {
     if (timeoutId) clearTimeout(timeoutId);
     timeoutId = setTimeout(() => func(...args), wait);

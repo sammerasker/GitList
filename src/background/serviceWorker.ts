@@ -112,7 +112,7 @@ async function buildStateUpdate(): Promise<StateUpdate> {
     lastSyncAllStarred: syncState.lastSyncAllStarred || undefined,
     lastSyncLists: syncState.lastSyncLists || undefined,
     syncInProgress: isSyncing,
-    error: Object.values(syncState.errors).find(e => e) || undefined,
+    error: Object.values(syncState.errors).find((e) => e) || undefined,
   };
 }
 
@@ -121,12 +121,14 @@ async function buildStateUpdate(): Promise<StateUpdate> {
  */
 async function broadcastStateUpdate(): Promise<void> {
   const state = await buildStateUpdate();
-  chrome.runtime.sendMessage({
-    type: 'STATE_UPDATE',
-    payload: state,
-  }).catch(() => {
-    // Popup may not be open, that's OK
-  });
+  chrome.runtime
+    .sendMessage({
+      type: 'STATE_UPDATE',
+      payload: state,
+    })
+    .catch(() => {
+      // Popup may not be open, that's OK
+    });
 }
 
 /**
@@ -134,7 +136,7 @@ async function broadcastStateUpdate(): Promise<void> {
  */
 async function setupAlarm(): Promise<void> {
   const settings = await getSettings();
-  
+
   if (!settings.autoRefreshEnabled) {
     console.log('[SW] 🔕 Auto-refresh disabled - clearing alarm');
     await chrome.alarms.clear(SYNC_ALARM_NAME);
@@ -142,9 +144,11 @@ async function setupAlarm(): Promise<void> {
   }
 
   const periodInMinutes = settings.autoRefreshIntervalHours * 60;
-  
-  console.log(`[SW] 🔔 Creating alarm with periodInMinutes: ${periodInMinutes} (${settings.autoRefreshIntervalHours} hours)`);
-  
+
+  console.log(
+    `[SW] 🔔 Creating alarm with periodInMinutes: ${periodInMinutes} (${settings.autoRefreshIntervalHours} hours)`
+  );
+
   await chrome.alarms.create(SYNC_ALARM_NAME, {
     periodInMinutes,
   });
@@ -152,7 +156,9 @@ async function setupAlarm(): Promise<void> {
   // Verify the alarm was created correctly
   const alarm = await chrome.alarms.get(SYNC_ALARM_NAME);
   if (alarm) {
-    console.log(`[SW] ✅ Alarm verified - periodInMinutes: ${alarm.periodInMinutes}, scheduledTime: ${new Date(alarm.scheduledTime).toISOString()}`);
+    console.log(
+      `[SW] ✅ Alarm verified - periodInMinutes: ${alarm.periodInMinutes}, scheduledTime: ${new Date(alarm.scheduledTime).toISOString()}`
+    );
   } else {
     console.error('[SW] ❌ Alarm creation failed - alarm not found after creation');
   }
@@ -165,10 +171,10 @@ async function handleConnect(): Promise<void> {
   try {
     // Get settings to check for custom client ID
     const settings = await getSettings();
-    
+
     // Resolve client ID with proper precedence
     const clientId = await resolveClientId();
-    
+
     if (!clientId) {
       throw new Error(getClientIdErrorMessage());
     }
@@ -178,12 +184,14 @@ async function handleConnect(): Promise<void> {
 
     // Notify popup with device code and verification URI
     // Popup will handle showing this to the user
-    chrome.runtime.sendMessage({
-      type: 'DEVICE_CODE_RECEIVED',
-      payload: deviceCodeResponse,
-    }).catch(() => {
-      // Popup may not be open
-    });
+    chrome.runtime
+      .sendMessage({
+        type: 'DEVICE_CODE_RECEIVED',
+        payload: deviceCodeResponse,
+      })
+      .catch(() => {
+        // Popup may not be open
+      });
 
     // Start polling for token
     try {
@@ -201,31 +209,35 @@ async function handleConnect(): Promise<void> {
       await storeViewer(viewer);
 
       // Notify popup
-      chrome.runtime.sendMessage({
-        type: 'CONNECTION_SUCCESS',
-        payload: viewer,
-      }).catch(() => {});
+      chrome.runtime
+        .sendMessage({
+          type: 'CONNECTION_SUCCESS',
+          payload: viewer,
+        })
+        .catch(() => {});
 
       // Trigger initial sync
       await performSync(settings);
 
       // Set up alarm for auto-refresh
       await setupAlarm();
-
     } catch (error) {
       console.error('[SW] Token polling error:', error);
-      chrome.runtime.sendMessage({
-        type: 'CONNECTION_ERROR',
-        payload: error instanceof Error ? error.message : 'Connection failed',
-      }).catch(() => {});
+      chrome.runtime
+        .sendMessage({
+          type: 'CONNECTION_ERROR',
+          payload: error instanceof Error ? error.message : 'Connection failed',
+        })
+        .catch(() => {});
     }
-
   } catch (error) {
     console.error('[SW] Connect error:', error);
-    chrome.runtime.sendMessage({
-      type: 'CONNECTION_ERROR',
-      payload: error instanceof Error ? error.message : 'Connection failed',
-    }).catch(() => {});
+    chrome.runtime
+      .sendMessage({
+        type: 'CONNECTION_ERROR',
+        payload: error instanceof Error ? error.message : 'Connection failed',
+      })
+      .catch(() => {});
   }
 }
 
@@ -240,9 +252,11 @@ async function handleDisconnect(): Promise<void> {
     await clearCaches();
     await chrome.alarms.clear(SYNC_ALARM_NAME);
 
-    chrome.runtime.sendMessage({
-      type: 'DISCONNECTION_SUCCESS',
-    }).catch(() => {});
+    chrome.runtime
+      .sendMessage({
+        type: 'DISCONNECTION_SUCCESS',
+      })
+      .catch(() => {});
 
     await broadcastStateUpdate();
   } catch (error) {
@@ -274,7 +288,10 @@ async function performSync(settings: ExtensionSettings): Promise<void> {
     // Execute sync
     console.log('[SW] 📡 Calling syncAll...');
     const syncState = await syncAll(settings);
-    console.log('[SW] ✅ syncAll completed:', { stars: syncState.allStarred.length, lists: syncState.lists.length });
+    console.log('[SW] ✅ syncAll completed:', {
+      stars: syncState.allStarred.length,
+      lists: syncState.lists.length,
+    });
 
     // Update cache
     await chrome.storage.local.set({
@@ -288,7 +305,6 @@ async function performSync(settings: ExtensionSettings): Promise<void> {
     isSyncing = false;
     await broadcastStateUpdate();
     console.log('[SW] ✅ Sync completed successfully');
-
   } catch (error) {
     console.error('[SW] ❌ Sync error:', error instanceof Error ? error.message : String(error));
     isSyncing = false;
@@ -300,9 +316,14 @@ async function performSync(settings: ExtensionSettings): Promise<void> {
  * Message handler
  */
 chrome.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
-  console.log(`[SW] 📨 Message received: "${message.type}" from ${sender.id === chrome.runtime.id ? 'popup' : 'content'} at ${new Date().toISOString()}`);
+  console.log(
+    `[SW] 📨 Message received: "${message.type}" from ${sender.id === chrome.runtime.id ? 'popup' : 'content'} at ${new Date().toISOString()}`
+  );
   if (message.payload) {
-    console.log('[SW] 📦 Payload preview:', JSON.stringify(message.payload).substring(0, 100) + '...');
+    console.log(
+      '[SW] 📦 Payload preview:',
+      JSON.stringify(message.payload).substring(0, 100) + '...'
+    );
   }
 
   (async () => {
@@ -337,7 +358,14 @@ chrome.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
         case 'GET_STATE':
           console.log('[SW] 📊 Building state...');
           const state = await buildStateUpdate();
-          console.log('[SW] ✅ State built - connected:', state.isConnected, 'stars:', state.allStarred?.length || 0, 'lists:', state.lists?.length || 0);
+          console.log(
+            '[SW] ✅ State built - connected:',
+            state.isConnected,
+            'stars:',
+            state.allStarred?.length || 0,
+            'lists:',
+            state.lists?.length || 0
+          );
           sendResponse(state);
           break;
 
@@ -351,13 +379,16 @@ chrome.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
         case 'UPDATE_SETTINGS': {
           console.log('[SW] ⚙️  Updating settings:', message.payload);
           const updatedSettings = {
-            ...await getSettings(),
+            ...(await getSettings()),
             ...message.payload,
           };
           await saveSettings(updatedSettings);
-          
+
           // Reconfigure alarm if needed
-          if ('autoRefreshEnabled' in message.payload || 'autoRefreshIntervalHours' in message.payload) {
+          if (
+            'autoRefreshEnabled' in message.payload ||
+            'autoRefreshIntervalHours' in message.payload
+          ) {
             console.log('[SW] 🔔 Reconfiguring alarm...');
             await setupAlarm();
           }
@@ -395,9 +426,13 @@ chrome.runtime.onMessage.addListener((message: any, sender, sendResponse) => {
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === SYNC_ALARM_NAME) {
     console.log('[SW] ⏰ Auto-refresh alarm triggered at', new Date().toISOString());
-    console.log(`[SW] 📊 Alarm details - periodInMinutes: ${alarm.periodInMinutes}, scheduledTime: ${new Date(alarm.scheduledTime).toISOString()}`);
+    console.log(
+      `[SW] 📊 Alarm details - periodInMinutes: ${alarm.periodInMinutes}, scheduledTime: ${new Date(alarm.scheduledTime).toISOString()}`
+    );
     const settings = await getSettings();
-    console.log(`[SW] ⚙️  Current settings - autoRefreshIntervalHours: ${settings.autoRefreshIntervalHours}`);
+    console.log(
+      `[SW] ⚙️  Current settings - autoRefreshIntervalHours: ${settings.autoRefreshIntervalHours}`
+    );
     await performSync(settings);
   }
 });
@@ -407,7 +442,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
  */
 chrome.runtime.onInstalled.addListener(async () => {
   console.log('[SW] 🔧 Extension installed/updated - initializing...');
-  
+
   // Initialize settings if not present
   const data = await chrome.storage.local.get([STORAGE_KEYS.SETTINGS]);
   if (!data[STORAGE_KEYS.SETTINGS]) {

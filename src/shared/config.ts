@@ -24,7 +24,7 @@ function getInjectedClientId(): string {
  */
 export function assertClientIdConfigured(): void {
   const clientId = getInjectedClientId();
-  if (!clientId || clientId === "") {
+  if (!clientId || clientId === '') {
     const message = 'GitHub OAuth Client ID not configured. Extension cannot connect to GitHub.';
     console.error(`[GitLists] ${message}`);
   }
@@ -38,19 +38,23 @@ export async function resolveClientId(): Promise<string | null> {
   try {
     // 1. Check for developer override in storage (only in dev mode)
     const devData = await chrome.storage.local.get(['devModeEnabled', 'githubClientIdOverride']);
-    if (devData.devModeEnabled && devData.githubClientIdOverride && devData.githubClientIdOverride.trim()) {
+    if (
+      devData.devModeEnabled &&
+      devData.githubClientIdOverride &&
+      devData.githubClientIdOverride.trim()
+    ) {
       return devData.githubClientIdOverride.trim();
     }
   } catch (error) {
     console.warn('[Config] Failed to check developer override:', error);
   }
-  
+
   // 2. Use the build-time injected client ID
   const clientId = getInjectedClientId();
-  if (clientId && clientId !== "") {
+  if (clientId && clientId !== '') {
     return clientId.trim();
   }
-  
+
   // 3. No client ID available
   assertClientIdConfigured();
   return null;
@@ -61,7 +65,7 @@ export async function resolveClientId(): Promise<string | null> {
  */
 export function getClientIdErrorMessage(): string {
   const clientId = getInjectedClientId();
-  if (!clientId || clientId === "") {
+  if (!clientId || clientId === '') {
     return 'Extension not properly configured. Please contact the developer.';
   }
   return 'GitHub Client ID is required to connect to GitHub.';

@@ -17,11 +17,32 @@ import {
 import { formatLastSyncTime, parseRepoName, buildRepoUrl, debounce } from '../shared/utils';
 
 // ============================================================
+// DARK MODE
+// ============================================================
+
+/**
+ * Apply dark mode based on setting
+ */
+function applyDarkMode(mode: 'auto' | 'light' | 'dark'): void {
+  const body = document.body;
+  
+  // Remove existing classes
+  body.classList.remove('light-mode', 'dark-mode');
+  
+  if (mode === 'light') {
+    body.classList.add('light-mode');
+  } else if (mode === 'dark') {
+    body.classList.add('dark-mode');
+  }
+  // If 'auto', let CSS media query handle it (no class needed)
+}
+
+// ============================================================
 // GLOBAL ERROR HANDLING
 // ============================================================
 
 let lastErrorTime = 0;
-let errorDebounceMs = 2000;
+const errorDebounceMs = 2000;
 
 /**
  * Safe message sending helper with error handling
@@ -29,21 +50,23 @@ let errorDebounceMs = 2000;
 async function safeSendMessage<T>(message: Message): Promise<T | null> {
   try {
     const response = await chrome.runtime.sendMessage(message);
-    
+
     // Check for chrome.runtime.lastError
     if (chrome.runtime.lastError) {
       throw new Error(chrome.runtime.lastError.message);
     }
-    
+
     return response as T;
   } catch (error) {
     console.error(`[Popup] ❌ Message failed: "${message.type}":`, error);
-    
+
     // User-friendly error messages
     if (error instanceof Error) {
-      if (error.message.includes('Extension context invalidated') || 
-          error.message.includes('message port closed') ||
-          error.message.includes('Receiving end does not exist')) {
+      if (
+        error.message.includes('Extension context invalidated') ||
+        error.message.includes('message port closed') ||
+        error.message.includes('Receiving end does not exist')
+      ) {
         showError('Extension background is not responding. Reload the extension.');
       } else {
         showError('Something went wrong. Try refreshing the page.');
@@ -51,7 +74,7 @@ async function safeSendMessage<T>(message: Message): Promise<T | null> {
     } else {
       showError('Extension background is not responding. Reload the extension.');
     }
-    
+
     return null;
   }
 }
@@ -61,13 +84,13 @@ async function safeSendMessage<T>(message: Message): Promise<T | null> {
  */
 function showError(message: string, details?: unknown): void {
   const now = Date.now();
-  
+
   // Debounce repeated errors
   if (now - lastErrorTime < errorDebounceMs) {
     return;
   }
   lastErrorTime = now;
-  
+
   // Don't reveal sensitive information
   let safeMessage = message;
   if (typeof message === 'string') {
@@ -75,28 +98,28 @@ function showError(message: string, details?: unknown): void {
     safeMessage = message.replace(/[a-f0-9]{20,}/gi, '[REDACTED]');
     safeMessage = safeMessage.replace(/gho_[a-zA-Z0-9_]+/gi, '[REDACTED]');
   }
-  
+
   // Log details for debugging (but not sensitive info)
   if (details && typeof details === 'object') {
     console.error('[Popup] Error details:', details);
   }
-  
+
   // Show in error banner
   const errorBanner = document.getElementById('error-banner');
   const errorBannerMessage = document.getElementById('error-banner-message');
-  
+
   if (errorBanner && errorBannerMessage) {
     errorBannerMessage.textContent = safeMessage;
     errorBanner.classList.remove('hidden');
   }
-  
+
   // Fallback to existing notification system
   const errorNotification = document.getElementById('error-notification');
   const errorMessage = document.getElementById('error-message');
   if (errorNotification && errorMessage) {
     errorMessage.textContent = safeMessage;
     errorNotification.classList.remove('hidden');
-    
+
     setTimeout(() => {
       errorNotification.classList.add('hidden');
     }, 5000);
@@ -118,20 +141,20 @@ function clearError(): void {
  */
 function resetUIState(): void {
   // Re-enable all buttons
-  document.querySelectorAll('button').forEach(btn => {
+  document.querySelectorAll('button').forEach((btn) => {
     if (btn.id !== 'error-banner-close') {
       btn.disabled = false;
     }
   });
-  
+
   // Reset button text for test buttons
   const testRefreshBtn = document.getElementById('test-refresh-btn') as HTMLButtonElement;
   const testListsBtn = document.getElementById('test-lists-btn') as HTMLButtonElement;
-  
+
   if (testRefreshBtn && testRefreshBtn.textContent !== 'Test Refresh Now') {
     testRefreshBtn.textContent = 'Test Refresh Now';
   }
-  
+
   if (testListsBtn && testListsBtn.textContent !== 'Test Lists Scraping') {
     testListsBtn.textContent = 'Test Lists Scraping';
   }
@@ -177,6 +200,7 @@ const saveSettingsBtn = document.getElementById('save-settings-btn')!;
 const autoRefreshToggle = document.getElementById('auto-refresh-toggle') as HTMLInputElement;
 const refreshIntervalInput = document.getElementById('refresh-interval-input') as HTMLInputElement;
 const listsSyncToggle = document.getElementById('lists-sync-toggle') as HTMLInputElement;
+const darkModeSelect = document.getElementById('dark-mode-select') as HTMLSelectElement;
 const privateReposToggle = document.getElementById('private-repos-toggle') as HTMLInputElement;
 const sessionTokenToggle = document.getElementById('session-token-toggle') as HTMLInputElement;
 const customClientIdInput = document.getElementById('custom-client-id-input') as HTMLInputElement;
@@ -202,13 +226,13 @@ const deviceFlowStatus = document.getElementById('device-flow-status')!;
 // State
 let currentState: StateUpdate | null = null;
 let currentSettings: ExtensionSettings = DEFAULT_SETTINGS;
-let allRepos: Map<string, GitHubRepository> = new Map();
-let allLists: Map<string, GitHubList> = new Map();
+const allRepos: Map<string, GitHubRepository> = new Map();
+const allLists: Map<string, GitHubList> = new Map();
 
 // Folder expansion state
-let folderStates: Map<string, boolean> = new Map([
+const folderStates: Map<string, boolean> = new Map([
   ['All Starred', false], // Collapsed by default
-  ['Lists', true]         // Expanded by default
+  ['Lists', true], // Expanded by default
 ]);
 
 // Developer Mode state
@@ -259,7 +283,7 @@ async function updateState(): Promise<void> {
       renderTree();
       updateSyncInfo();
     }
-    
+
     // Clear any previous errors on successful state update
     clearError();
   } catch (error) {
@@ -355,11 +379,7 @@ function renderTree(): void {
 /**
  * Create tree folder element
  */
-function createTreeFolder(
-  name: string,
-  count: number,
-  defaultExpanded: boolean
-): HTMLElement {
+function createTreeFolder(name: string, count: number, defaultExpanded: boolean): HTMLElement {
   const folder = document.createElement('div');
   folder.className = 'tree-folder';
 
@@ -388,7 +408,7 @@ function createTreeFolder(
       const isExpanded = items.classList.contains('expanded');
       items.classList.toggle('expanded');
       toggle.classList.toggle('expanded');
-      
+
       // Save folder state for main folders
       if (name === 'All Starred' || name === 'Lists') {
         folderStates.set(name, !isExpanded);
@@ -515,7 +535,7 @@ function applySearch(): void {
 
   if (!query) {
     // Show all items
-    treeContainer.querySelectorAll('.tree-item').forEach(item => {
+    treeContainer.querySelectorAll('.tree-item').forEach((item) => {
       item.classList.remove('highlight');
       (item as HTMLElement).style.display = '';
     });
@@ -523,7 +543,7 @@ function applySearch(): void {
   }
 
   // Filter items
-  treeContainer.querySelectorAll('.tree-item').forEach(item => {
+  treeContainer.querySelectorAll('.tree-item').forEach((item) => {
     const text = (item as HTMLElement).dataset.repoName?.toLowerCase() || '';
     const match = text.includes(query);
     item.classList.toggle('highlight', match);
@@ -534,7 +554,10 @@ function applySearch(): void {
 /**
  * Handle device flow callback
  */
-function handleDeviceCodeReceived(deviceCode: { user_code: string; verification_uri: string }): void {
+function handleDeviceCodeReceived(deviceCode: {
+  user_code: string;
+  verification_uri: string;
+}): void {
   showView('device-flow');
   userCodeDisplay.textContent = deviceCode.user_code;
   deviceFlowStatus.textContent = 'Waiting for authorization...';
@@ -564,9 +587,13 @@ async function loadSettings(): Promise<void> {
     autoRefreshToggle.checked = settings.autoRefreshEnabled;
     refreshIntervalInput.value = String(settings.autoRefreshIntervalHours);
     listsSyncToggle.checked = settings.listsSyncEnabled;
+    darkModeSelect.value = settings.darkMode || 'auto';
     privateReposToggle.checked = settings.includePrivateRepos;
     sessionTokenToggle.checked = settings.sessionOnlyToken;
-    
+
+    // Apply dark mode
+    applyDarkMode(settings.darkMode || 'auto');
+
     // Load developer override (only in dev mode)
     if (devModeEnabled) {
       const data = await chrome.storage.local.get(['githubClientIdOverride']);
@@ -574,7 +601,7 @@ async function loadSettings(): Promise<void> {
     } else {
       customClientIdInput.value = '';
     }
-    
+
     // Load developer mode setting
     await loadDevModeState();
   } catch (error) {
@@ -629,17 +656,17 @@ function updateDiagnosticsVisibility(): void {
  */
 function handleVersionClick(): void {
   versionClickCount++;
-  
+
   // Reset timer if this is the first click or extend existing timer
   if (versionClickTimer) {
     clearTimeout(versionClickTimer);
   }
-  
+
   versionClickTimer = window.setTimeout(() => {
     versionClickCount = 0;
     versionClickTimer = null;
   }, 5000); // 5 second window
-  
+
   // Check if we've reached 7 clicks
   if (versionClickCount >= 7) {
     versionClickCount = 0;
@@ -647,7 +674,7 @@ function handleVersionClick(): void {
       clearTimeout(versionClickTimer);
       versionClickTimer = null;
     }
-    
+
     // Unlock developer mode
     saveDevModeState(true);
     showError('Developer Mode enabled! Diagnostics are now available.');
@@ -660,7 +687,7 @@ function handleVersionClick(): void {
 chrome.runtime.onMessage.addListener((message: unknown) => {
   const msg = message as Record<string, unknown> | undefined;
   if (!msg || typeof msg !== 'object' || !('type' in msg)) return;
-  
+
   console.log('[Popup] 📨 Received message from SW:', msg.type, new Date().toISOString());
 
   switch (msg.type) {
@@ -738,7 +765,7 @@ refreshBtn.addEventListener('click', async () => {
       console.log('[Popup] ⏭️  Sync already in progress, ignoring');
       return;
     }
-    
+
     (refreshBtn as HTMLButtonElement).disabled = true;
     console.log('[Popup] 📤 Sending REFRESH_NOW to SW');
     await safeSendMessage({ type: 'REFRESH_NOW' });
@@ -765,7 +792,7 @@ searchInput.addEventListener('input', () => {
 settingsBtn.addEventListener('click', () => {
   try {
     settingsModal.classList.remove('hidden');
-    loadSettings().catch(error => {
+    loadSettings().catch((error) => {
       console.error('[Popup] ❌ Settings load error:', error);
       showError('Failed to load settings.', error);
     });
@@ -794,24 +821,31 @@ settingsModal.querySelector('.modal-overlay')?.addEventListener('click', () => {
 saveSettingsBtn.addEventListener('click', async () => {
   try {
     (saveSettingsBtn as HTMLButtonElement).disabled = true;
-    
+
     const settings: ExtensionSettings = {
       autoRefreshEnabled: autoRefreshToggle.checked,
-      autoRefreshIntervalHours: Math.max(1, Math.min(168, parseInt(refreshIntervalInput.value) || 6)),
+      autoRefreshIntervalHours: Math.max(
+        1,
+        Math.min(168, parseInt(refreshIntervalInput.value) || 6)
+      ),
       listsSyncEnabled: listsSyncToggle.checked,
+      darkMode: darkModeSelect.value as 'auto' | 'light' | 'dark',
       includePrivateRepos: privateReposToggle.checked,
       sessionOnlyToken: sessionTokenToggle.checked,
       customClientId: null, // No longer used - kept for compatibility
     };
 
     await safeSendMessage({ type: 'UPDATE_SETTINGS', payload: settings });
-    
+
+    // Apply dark mode immediately
+    applyDarkMode(settings.darkMode);
+
     // Save developer override separately (only in dev mode)
     if (devModeEnabled) {
       const overrideValue = customClientIdInput.value.trim() || null;
       await chrome.storage.local.set({ githubClientIdOverride: overrideValue });
     }
-    
+
     currentSettings = settings;
     settingsModal.classList.add('hidden');
     showError('Settings saved!');
@@ -866,7 +900,7 @@ testRefreshBtn.addEventListener('click', async () => {
     console.log('[Popup] 🧪 Test refresh button clicked');
     testRefreshBtn.textContent = 'Testing...';
     testRefreshBtn.disabled = true;
-    
+
     await safeSendMessage({ type: 'REFRESH_NOW' });
     showError('Test refresh completed! Check console logs.');
   } catch (error) {
@@ -883,20 +917,20 @@ testListsBtn.addEventListener('click', async () => {
     console.log('[Popup] 🧪 Test lists button clicked');
     testListsBtn.textContent = 'Testing...';
     testListsBtn.disabled = true;
-    
+
     // Get current active tab
     const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
+
     if (!activeTab.url?.includes('github.com')) {
       showError('Please navigate to your GitHub stars page first, then try again.');
       return;
     }
-    
+
     console.log('[Popup] 📤 Sending test scrape message to active tab:', activeTab.url);
-    
+
     // Send message directly to active tab
     const response = await chrome.tabs.sendMessage(activeTab.id!, { type: 'SCRAPE_STARS_PAGE' });
-    
+
     if (response?.success) {
       const lists = response.data || [];
       showError(`Found ${lists.length} lists! Check console for details.`);
@@ -907,7 +941,7 @@ testListsBtn.addEventListener('click', async () => {
     }
   } catch (error) {
     console.error('[Popup] ❌ Test lists error:', error);
-    showError('Test failed. Make sure you\'re on GitHub.', error);
+    showError("Test failed. Make sure you're on GitHub.", error);
   } finally {
     resetUIState();
   }
@@ -943,7 +977,7 @@ document.addEventListener('click', (event) => {
 });
 
 // Error notification close
-document.querySelectorAll('.notification .btn-close').forEach(btn => {
+document.querySelectorAll('.notification .btn-close').forEach((btn) => {
   btn.addEventListener('click', () => {
     try {
       errorNotification.classList.add('hidden');
@@ -968,7 +1002,7 @@ async function init(): Promise<void> {
 }
 
 // Initialize popup on load
-init().catch(error => {
+init().catch((error) => {
   console.error('[Popup] ❌ Fatal initialization error:', error);
   showError('Failed to start extension. Try reloading.', error);
 });
